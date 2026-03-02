@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ENGINEER
+  ADMIN
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+  DRAFT
+}
+
+enum ProjectCategory {
+  RESIDENTIAL
+  COMMERCIAL
+  HOSPITALITY
+  OTHER
+}
+
+enum StepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  avatarUrl String?
+  role      UserRole @default(ENGINEER)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects  Project[]
+  comments  Comment[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+// ─── Company ──────────────────────────────────────────────────────────────────
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  email     String?
+  logoUrl   String?
+  plan      String   @default("free")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users    User[]
+  projects Project[]
+
+  @@map("companies")
+}
+
+// ─── Project ──────────────────────────────────────────────────────────────────
+
+model Project {
+  id               String          @id @default(uuid())
+  name             String
+  category         ProjectCategory @default(RESIDENTIAL)
+  status           ProjectStatus   @default(ACTIVE)
+  clientName       String
+  clientEmail      String
+  location         String?
+  startDate        DateTime?
+  estimatedEndDate DateTime?
+  progressPercent  Int             @default(0)
+
+  engineerId String
+  engineer   User    @relation(fields: [engineerId], references: [id])
+  companyId  String?
+  company    Company? @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  steps        ProjectStep[]
+  updates      ProjectUpdate[]
+  accessTokens AccessToken[]
+  auditLogs    AuditLog[]
+
+  @@map("projects")
+}
+
+// ─── Step Templates (Predefined) ─────────────────────────────────────────────
+
+model StepTemplate {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  order       Int
+  isDefault   Boolean @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("step_templates")
+}
+
+// ─── Project Steps ────────────────────────────────────────────────────────────
+
+model ProjectStep {
+  id          String     @id @default(uuid())
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  order       Int
+  status      StepStatus @default(PENDING)
+  startDate   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  updates ProjectUpdate[]
+
+  @@map("project_steps")
+}
+
+// ─── Project Updates ──────────────────────────────────────────────────────────
+
+model ProjectUpdate {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stepId      String?
+  step        ProjectStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  location    String?
+  category    String?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  media    Media[]
+  comments Comment[]
+
+  @@map("project_updates")
+}
+
+// ─── Media ────────────────────────────────────────────────────────────────────
+
+model Media {
+  id        String        @id @default(uuid())
+  updateId  String
+  update    ProjectUpdate @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  url       String
+  type      MediaType     @default(IMAGE)
+  filename  String?
+  sizeBytes Int?
+  createdAt DateTime      @default(now())
+
+  @@map("media")
+}
+
+// ─── Comments ─────────────────────────────────────────────────────────────────
+
+model Comment {
+  id          String        @id @default(uuid())
+  updateId    String
+  update      ProjectUpdate @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  authorId    String?
+  author      User?         @relation(fields: [authorId], references: [id])
+  clientName  String?
+  clientEmail String?
+  body        String
+  isEdited    Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+
+  @@map("comments")
+}
+
+// ─── Access Tokens (Client Portal) ───────────────────────────────────────────
+
+model AccessToken {
+  id         String    @id @default(uuid())
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  token      String    @unique @default(uuid())
+  isActive   Boolean   @default(true)
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("access_tokens")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
