@@ -59,6 +59,14 @@ export async function POST(
     include: { media: true },
   });
 
+  // Auto-start the linked step if it is still PENDING (#03)
+  if (stepId) {
+    await prisma.projectStep.updateMany({
+      where: { id: stepId, projectId: id, status: "PENDING" },
+      data: { status: "IN_PROGRESS", startDate: new Date() },
+    });
+  }
+
   // Audit log
   await prisma.auditLog.create({
     data: {
@@ -93,7 +101,7 @@ export async function POST(
         engineerName,
         updateTitle: title,
         portalUrl,
-      }).catch((err) => console.error("Failed to send update email:", err));
+      }).catch((err) => console.error("[EMAIL ERROR] sendUpdatePublishedEmail failed:", JSON.stringify(err, null, 2)));
     }
   }
 

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatRelativeTime } from "@/lib/utils";
 import { toast } from "sonner";
 
-type ProjectStatus = "DRAFT" | "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED";
+type ProjectStatus = "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED";
 
 type Project = {
   id: string;
@@ -21,7 +21,6 @@ type Project = {
 };
 
 const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
-  { value: "DRAFT", label: "Draft" },
   { value: "ACTIVE", label: "In Progress" },
   { value: "ON_HOLD", label: "On Hold" },
   { value: "COMPLETED", label: "Completed" },
@@ -69,6 +68,7 @@ export function ProjectCard({ project: initial }: { project: Project }) {
       });
       if (!res.ok) throw new Error();
       toast.success("Status updated");
+      router.refresh();
     } catch {
       setStatus(prev); // revert
       toast.error("Failed to update status");

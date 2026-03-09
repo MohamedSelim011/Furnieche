@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       projectName: name,
       engineerName,
       portalUrl,
-    }).catch((err) => console.error("Failed to send portal email:", err));
+    }).catch((err) => console.error("[EMAIL ERROR] sendClientPortalEmail failed:", JSON.stringify(err, null, 2)));
   }
 
   // Audit log

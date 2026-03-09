@@ -9,14 +9,25 @@ import { formatRelativeTime, getInitials } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { ProjectCard } from "@/components/project-card";
 
+const ACTIVE_STATUSES = ["ACTIVE", "ON_HOLD"];
+
 async function getProjects(userId: string) {
-  return prisma.project.findMany({
-    where: { engineerId: userId },
+  const projects = await prisma.project.findMany({
+    where: { engineerId: userId, status: { not: "ARCHIVED" } },
     include: {
       steps: { select: { status: true } },
       _count: { select: { updates: true } },
     },
     orderBy: { updatedAt: "desc" },
+  });
+
+  // Completed projects sink to the bottom, active/on-hold stay on top
+  return projects.sort((a, b) => {
+    const aActive = ACTIVE_STATUSES.includes(a.status);
+    const bActive = ACTIVE_STATUSES.includes(b.status);
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+    return 0;
   });
 }
 
@@ -82,9 +93,9 @@ export default async function DashboardPage() {
               </span>
             )}
           </button>
-          <div className="w-10 h-10 bg-orange-300 rounded-full flex items-center justify-center text-white text-xs font-bold">
+          <Link href="/settings" className="w-10 h-10 bg-orange-300 rounded-full flex items-center justify-center text-white text-xs font-bold">
             {getInitials(user.email?.split("@")[0] ?? "U")}
-          </div>
+          </Link>
         </div>
       </div>
 

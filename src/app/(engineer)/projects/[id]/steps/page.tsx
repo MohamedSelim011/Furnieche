@@ -209,7 +209,7 @@ export default function StepsPage() {
                     : step.status === "IN_PROGRESS"
                     ? "bg-blue-50 text-brand-700 border-blue-200"
                     : step.status === "SKIPPED"
-                    ? "bg-gray-50 text-gray-400 border-gray-200"
+                    ? "bg-amber-50 text-amber-600 border-amber-200"
                     : "bg-gray-50 text-gray-500 border-gray-200"
                 }`}
               >

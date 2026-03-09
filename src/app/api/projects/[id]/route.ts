@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createClient();
@@ -17,7 +17,7 @@ export async function PATCH(
   const body = await req.json();
   const { status } = body;
 
-  const validStatuses = ["DRAFT", "ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED"];
+  const validStatuses = ["ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED", "DELAYED"];
   if (status && !validStatuses.includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
@@ -37,4 +37,25 @@ export async function PATCH(
   } catch {
     return NextResponse.json({ error: "Failed to update project" }, { status: 500 });
   }
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  await syncUser(user);
+
+  const { id } = await params;
+
+  const project = await prisma.project.findFirst({
+    where: { id, engineerId: user.id },
+  });
+  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await prisma.project.delete({ where: { id } });
+  return new NextResponse(null, { status: 204 });
 }

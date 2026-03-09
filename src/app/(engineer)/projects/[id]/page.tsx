@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
   ArrowLeft, Plus, Share2, Clock, MapPin,
-  CheckCircle2, Circle, Loader2, ChevronRight,
+  CheckCircle2, Circle, MinusCircle, ChevronRight,
 } from "lucide-react";
 import { PageShell } from "@/components/layout/page-shell";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 import { formatDate, formatRelativeTime } from "@/lib/utils";
 import { SharePortalButton } from "./share-portal-button";
+import { DeleteProjectButton } from "./delete-project-button";
 
 async function getProject(id: string, userId: string) {
   return prisma.project.findFirst({
@@ -59,6 +60,7 @@ export default async function ProjectDetailPage({
             <ArrowLeft size={18} className="text-gray-600" />
           </Link>
           <div className="flex items-center gap-2">
+            <DeleteProjectButton projectId={id} />
             {portalToken && <SharePortalButton token={portalToken} projectName={project.name} />}
             <Link
               href={`/projects/${id}/update/new`}
@@ -124,7 +126,7 @@ export default async function ProjectDetailPage({
         ) : (
           <div className="space-y-2">
             {project.steps.slice(0, 5).map((step) => (
-              <StepRow key={step.id} step={step} />
+              <StepRow key={step.id} step={step} projectId={id} />
             ))}
             {project.steps.length > 5 && (
               <Link href={`/projects/${id}/steps`} className="block text-center text-xs text-brand-600 font-semibold py-2">
@@ -154,7 +156,7 @@ export default async function ProjectDetailPage({
         ) : (
           <div className="space-y-3">
             {project.updates.map((update) => (
-              <div key={update.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
+              <Link key={update.id} href={`/projects/${id}/updates/${update.id}`} className="block bg-white rounded-2xl border border-gray-100 shadow-sm p-3 active:bg-gray-50">
                 {update.category && (
                   <span className="text-[10px] font-bold uppercase tracking-widest text-brand-600">
                     {update.category}
@@ -178,7 +180,7 @@ export default async function ProjectDetailPage({
                     <span>{update.comments.length} comment{update.comments.length > 1 ? "s" : ""}</span>
                   )}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -187,27 +189,61 @@ export default async function ProjectDetailPage({
   );
 }
 
-function StepRow({ step }: { step: { id: string; name: string; status: string; order: number } }) {
-  const isCompleted = step.status === "COMPLETED";
-  const isInProgress = step.status === "IN_PROGRESS";
+function InProgressPie() {
+  // SVG donut showing ~65% arc to indicate in-progress
+  const r = 8;
+  const cx = 10;
+  const cy = 10;
+  const circumference = 2 * Math.PI * r; // ~50.27
+  const filled = circumference * 0.65;   // ~32.67
 
   return (
-    <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 p-3">
+    <svg width="20" height="20" viewBox="0 0 20 20">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#dbeafe" strokeWidth="2.5" />
+      <circle
+        cx={cx} cy={cy} r={r}
+        fill="none"
+        stroke="#2563eb"
+        strokeWidth="2.5"
+        strokeDasharray={`${filled} ${circumference}`}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${cx} ${cy})`}
+      />
+    </svg>
+  );
+}
+
+function StepRow({ step, projectId }: { step: { id: string; name: string; status: string; order: number }; projectId: string }) {
+  const isCompleted = step.status === "COMPLETED";
+  const isInProgress = step.status === "IN_PROGRESS";
+  const isSkipped = step.status === "SKIPPED";
+
+  return (
+    <Link
+      href={`/projects/${projectId}/updates?stepId=${step.id}`}
+      className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 p-3 active:bg-gray-50"
+    >
       <div className="shrink-0">
         {isCompleted ? (
           <CheckCircle2 size={20} className="text-green-500" />
         ) : isInProgress ? (
-          <Loader2 size={20} className="text-brand-500 animate-spin" />
+          <InProgressPie />
+        ) : isSkipped ? (
+          <MinusCircle size={20} className="text-amber-400" />
         ) : (
           <Circle size={20} className="text-gray-200" />
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate ${isCompleted ? "line-through text-gray-400" : "text-gray-800"}`}>
+        <p className={`text-sm font-medium truncate ${
+          isCompleted ? "line-through text-gray-400"
+          : isSkipped ? "line-through text-amber-400"
+          : "text-gray-800"
+        }`}>
           {step.name}
         </p>
       </div>
-      <span className="text-xs text-gray-400 shrink-0">#{step.order}</span>
-    </div>
+      <ChevronRight size={14} className="text-gray-300 shrink-0" />
+    </Link>
   );
 }
