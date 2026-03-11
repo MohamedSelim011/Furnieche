@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 import { sendClientPortalEmail } from "@/lib/email";
+import { getPlan } from "@/lib/plans";
 
 export async function GET() {
   const supabase = await createClient();
@@ -30,8 +31,25 @@ export async function POST(req: NextRequest) {
 
   await syncUser(user);
 
+  // Enforce plan project limit
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    include: { company: true },
+  });
+  const planKey = dbUser?.company?.plan ?? "free";
+  const plan = getPlan(planKey);
+  if (plan.maxProjects !== Infinity) {
+    const count = await prisma.project.count({ where: { engineerId: user.id } });
+    if (count >= plan.maxProjects) {
+      return NextResponse.json(
+        { error: `You've reached the ${plan.label} plan limit of ${plan.maxProjects} projects. Upgrade to create more.` },
+        { status: 403 }
+      );
+    }
+  }
+
   const body = await req.json();
-  const { name, category, clientName, clientEmail, location, startDate, steps } = body;
+  const { name, category, clientName, clientEmail, location, startDate, estimatedEndDate, steps } = body;
 
   if (!name || !clientName || !clientEmail) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -45,6 +63,7 @@ export async function POST(req: NextRequest) {
       clientEmail,
       location: location || null,
       startDate: startDate ? new Date(startDate) : null,
+      estimatedEndDate: estimatedEndDate ? new Date(estimatedEndDate) : null,
       engineerId: user.id,
       steps: steps?.length
         ? {

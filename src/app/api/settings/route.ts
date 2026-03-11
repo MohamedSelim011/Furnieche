@@ -17,6 +17,7 @@ export async function GET() {
 
   return NextResponse.json({
     company: dbUser?.company ?? null,
+    plan: dbUser?.company?.plan ?? "free",
   });
 }
 
@@ -38,15 +39,19 @@ export async function PATCH(req: NextRequest) {
     select: { companyId: true },
   });
 
+  const companyData = {
+    name: companyName.trim(),
+    email: companyEmail?.trim() || null,
+    ...(logoUrl !== undefined && { logoUrl: logoUrl || null }),
+  };
+
   if (dbUser?.companyId) {
     await prisma.company.update({
       where: { id: dbUser.companyId },
-      data: { name: companyName.trim(), email: companyEmail?.trim() || null },
+      data: companyData,
     });
   } else {
-    const company = await prisma.company.create({
-      data: { name: companyName.trim(), email: companyEmail?.trim() || null },
-    });
+    const company = await prisma.company.create({ data: companyData });
     await prisma.user.update({
       where: { id: user.id },
       data: { companyId: company.id },

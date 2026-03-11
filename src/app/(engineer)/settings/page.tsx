@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Building2, CreditCard, Shield, Trash2, Camera, LogOut, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Building2, Shield, Trash2, Camera, LogOut, Eye, EyeOff, Loader2, CheckCircle2, Headphones, Zap } from "lucide-react";
 import { PageShell } from "@/components/layout/page-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { PLANS, getPlan, type PlanKey } from "@/lib/plans";
 
 const tabs = ["Company", "Account", "Billing"] as const;
 type Tab = (typeof tabs)[number];
@@ -20,6 +21,7 @@ export default function SettingsPage() {
   const [companyEmail, setCompanyEmail] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<PlanKey>("free");
   const logoInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const supabase = createClient();
@@ -33,6 +35,7 @@ export default function SettingsPage() {
           setCompanyEmail(data.company.email ?? "");
           setLogoUrl(data.company.logoUrl ?? null);
         }
+        if (data.plan) setCurrentPlan(data.plan as PlanKey);
       })
       .catch(() => {});
   }, []);
@@ -135,7 +138,7 @@ export default function SettingsPage() {
           />
         )}
         {activeTab === "Account" && <AccountTab />}
-        {activeTab === "Billing" && <BillingTab />}
+        {activeTab === "Billing" && <BillingTab currentPlan={currentPlan} />}
       </div>
 
       {/* Logout */}
@@ -156,7 +159,7 @@ function CompanyTab({
   companyEmail: string;
   logoUrl: string | null;
   uploadingLogo: boolean;
-  logoInputRef: React.RefObject<HTMLInputElement | null>;
+  logoInputRef: React.RefObject<HTMLInputElement>;
   onNameChange: (v: string) => void;
   onEmailChange: (v: string) => void;
   onLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -316,31 +319,118 @@ function AccountTab() {
   );
 }
 
-function BillingTab() {
+const PLAN_ORDER: PlanKey[] = ["free", "pro", "business"];
+
+function BillingTab({ currentPlan }: { currentPlan: PlanKey }) {
+  const current = getPlan(currentPlan);
+
   return (
     <div className="space-y-4">
       <section>
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Subscription & Billing</p>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-widest text-brand-600">Current Plan</span>
-                <span className="bg-brand-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">PRO</span>
-              </div>
-              <p className="text-2xl font-bold text-gray-900 mt-1">$29<span className="text-sm font-normal text-gray-400">/mo</span></p>
-            </div>
+        {/* Current plan summary */}
+        <div className="bg-brand-50 border border-brand-200 rounded-2xl p-4 mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-brand-600">Current Plan</p>
+            <p className="text-xl font-bold text-gray-900 mt-0.5">
+              {current.label}
+              {current.price > 0 && (
+                <span className="text-sm font-normal text-gray-400 ml-1">${current.price}/mo</span>
+              )}
+              {current.price === 0 && (
+                <span className="text-sm font-normal text-gray-400 ml-1">Free</span>
+              )}
+            </p>
+            <p className="text-xs text-brand-600 mt-0.5">
+              {current.maxProjects === Infinity ? "Unlimited projects" : `Up to ${current.maxProjects} projects`}
+            </p>
           </div>
+          {current.prioritySupport && (
+            <div className="flex items-center gap-1.5 bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+              <Headphones size={13} />
+              Priority Support
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3.5">
-          <div className="flex items-center gap-2.5">
-            <CreditCard size={18} className="text-gray-400" />
-            <span className="text-sm text-gray-600">Next billing on Oct 12, 2023</span>
-          </div>
-          <button className="text-sm font-semibold text-brand-600">Manage</button>
+        {/* All plan cards */}
+        <div className="space-y-3">
+          {PLAN_ORDER.map((key) => {
+            const plan = PLANS[key];
+            const isCurrent = key === currentPlan;
+            const isUpgrade = PLAN_ORDER.indexOf(key) > PLAN_ORDER.indexOf(currentPlan);
+
+            return (
+              <div
+                key={key}
+                className={`bg-white rounded-2xl border shadow-sm p-4 ${
+                  isCurrent ? "border-brand-400 ring-1 ring-brand-300" : "border-gray-100"
+                }`}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-900">{plan.label}</span>
+                      {isCurrent && (
+                        <span className="bg-brand-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                          Current
+                        </span>
+                      )}
+                      {key === "business" && (
+                        <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide flex items-center gap-1">
+                          <Zap size={9} />
+                          Best Value
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">
+                      {plan.price === 0 ? (
+                        <span>Free</span>
+                      ) : (
+                        <span>${plan.price}<span className="text-sm font-normal text-gray-400">/mo</span></span>
+                      )}
+                    </p>
+                  </div>
+
+                  {!isCurrent && (
+                    <button
+                      disabled
+                      title="Payment integration coming soon"
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                        isUpgrade
+                          ? "bg-brand-600 text-white border-brand-600"
+                          : "bg-gray-50 text-gray-500 border-gray-200"
+                      }`}
+                    >
+                      {isUpgrade ? "Upgrade" : "Downgrade"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Feature list */}
+                <ul className="space-y-1.5">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-xs text-gray-600">
+                      <CheckCircle2 size={13} className={isCurrent ? "text-brand-500" : "text-gray-300"} />
+                      {f}
+                    </li>
+                  ))}
+                  {plan.prioritySupport && (
+                    <li className="flex items-center gap-2 text-xs text-amber-700 font-medium">
+                      <Headphones size={13} className="text-amber-500" />
+                      Priority support
+                    </li>
+                  )}
+                </ul>
+              </div>
+            );
+          })}
         </div>
+
+        <p className="text-center text-xs text-gray-400 mt-3">
+          Payment integration coming soon — contact us to upgrade manually
+        </p>
       </section>
     </div>
   );

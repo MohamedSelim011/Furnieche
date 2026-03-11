@@ -14,6 +14,7 @@ type Step1Data = {
   location: string;
   category: string;
   startDate: string;
+  estimatedEndDate: string;
 };
 
 type Step2Data = {
@@ -30,6 +31,7 @@ export default function NewProjectPage() {
     location: "",
     category: "RESIDENTIAL",
     startDate: "",
+    estimatedEndDate: "",
   });
   const [step2, setStep2] = useState<Step2Data>({
     clientName: "",
@@ -127,15 +129,27 @@ export default function NewProjectPage() {
                 </select>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="startDate">Start Date</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={step1.startDate}
-                  onChange={(e) => setStep1({ ...step1, startDate: e.target.value })}
-                  icon={<Calendar size={15} />}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={step1.startDate}
+                    onChange={(e) => setStep1({ ...step1, startDate: e.target.value })}
+                    icon={<Calendar size={15} />}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="estimatedEndDate">Deadline</Label>
+                  <Input
+                    id="estimatedEndDate"
+                    type="date"
+                    value={step1.estimatedEndDate}
+                    onChange={(e) => setStep1({ ...step1, estimatedEndDate: e.target.value })}
+                    icon={<Calendar size={15} />}
+                  />
+                </div>
               </div>
 
               {/* Predefined Steps Toggle */}
@@ -190,7 +204,7 @@ export default function NewProjectPage() {
                 className="w-full text-sm text-gray-400 font-medium py-2"
                 onClick={() => router.back()}
               >
-                Save Draft for Later
+                Cancel
               </button>
             </div>
           </>

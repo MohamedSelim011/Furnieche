@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
-import { Shield, ChevronDown, Lock } from "lucide-react";
+import { Shield, Lock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Progress } from "@/components/ui/progress";
 import { formatDate, formatRelativeTime, formatTime } from "@/lib/utils";
 import { CommentForm } from "./comment-form";
+import { ScopeSection } from "./scope-section";
 
 type PortalResult =
   | { status: "ok"; data: NonNullable<Awaited<ReturnType<typeof fetchAccessToken>>> }
@@ -48,6 +49,16 @@ async function getPortalData(token: string): Promise<PortalResult> {
   return { status: "ok", data: accessToken };
 }
 
+function getStatusBadge(status: string) {
+  switch (status) {
+    case "COMPLETED": return { label: "Completed", cls: "bg-green-50 text-green-700" };
+    case "DELAYED":   return { label: "Delayed",   cls: "bg-red-50 text-red-700" };
+    case "ON_HOLD":   return { label: "On Hold",   cls: "bg-amber-50 text-amber-700" };
+    case "ARCHIVED":  return { label: "Archived",  cls: "bg-gray-100 text-gray-500" };
+    default:          return { label: "In Progress", cls: "bg-green-50 text-green-700" };
+  }
+}
+
 export default async function PortalPage({
   params,
 }: {
@@ -64,6 +75,7 @@ export default async function PortalPage({
   const totalSteps = project.steps.length;
   const completedSteps = project.steps.filter((s) => s.status === "COMPLETED").length;
   const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+  const statusBadge = getStatusBadge(project.status);
 
   return (
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto pb-12">
@@ -79,8 +91,9 @@ export default async function PortalPage({
               <p className="text-xs text-gray-400 mt-0.5">{project.location}</p>
             )}
           </div>
-          <span className="bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wide">
-            In Progress
+          {/* Test 5: real project status badge */}
+          <span className={`${statusBadge.cls} text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wide shrink-0`}>
+            {statusBadge.label}
           </span>
         </div>
 
@@ -208,11 +221,19 @@ export default async function PortalPage({
         <p className="text-xs text-gray-400">Documentation verified and managed by</p>
         {project.company ? (
           <div className="flex items-center justify-center gap-2 mt-2">
-            <div className="w-7 h-7 bg-brand-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-bold">
-                {project.company.name[0]}
-              </span>
-            </div>
+            {/* Test 3: show logo if available */}
+            {project.company.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={project.company.logoUrl}
+                alt={project.company.name}
+                className="w-7 h-7 rounded-lg object-contain"
+              />
+            ) : (
+              <div className="w-7 h-7 bg-brand-600 rounded-lg flex items-center justify-center">
+                <span className="text-white text-xs font-bold">{project.company.name[0]}</span>
+              </div>
+            )}
             <span className="text-sm font-bold text-gray-800 uppercase tracking-wide">
               {project.company.name}
             </span>
@@ -220,9 +241,10 @@ export default async function PortalPage({
         ) : (
           <p className="text-sm font-semibold text-gray-700 mt-1">{project.engineer.name || project.engineer.email}</p>
         )}
-        <button className="mt-4 w-full bg-gray-900 text-white rounded-2xl py-3 text-sm font-semibold flex items-center justify-center gap-2">
-          <ChevronDown size={16} /> View Project Scope
-        </button>
+
+        {/* Test 2: expandable project scope */}
+        <ScopeSection steps={project.steps} />
+
         <p className="text-[10px] text-gray-300 mt-3 uppercase tracking-widest">Secure Client Portal v2.4.0</p>
       </div>
     </div>

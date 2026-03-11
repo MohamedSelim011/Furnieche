@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatRelativeTime } from "@/lib/utils";
 import { toast } from "sonner";
 
-type ProjectStatus = "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED";
+type ProjectStatus = "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED" | "DELAYED";
 
 type Project = {
   id: string;
@@ -23,6 +23,7 @@ type Project = {
 const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
   { value: "ACTIVE", label: "In Progress" },
   { value: "ON_HOLD", label: "On Hold" },
+  { value: "DELAYED", label: "Delayed" },
   { value: "COMPLETED", label: "Completed" },
   { value: "ARCHIVED", label: "Archived" },
 ];
@@ -32,6 +33,7 @@ function getStatusDropdownClass(status: string) {
     case "ACTIVE":     return "bg-blue-50 text-brand-700 border-blue-200";
     case "ON_HOLD":    return "bg-amber-50 text-amber-700 border-amber-200";
     case "COMPLETED":  return "bg-green-50 text-green-700 border-green-200";
+    case "DELAYED":    return "bg-red-50 text-red-700 border-red-200";
     case "ARCHIVED":   return "bg-gray-100 text-gray-500 border-gray-200";
     default:           return "bg-gray-50 text-gray-500 border-gray-200";
   }

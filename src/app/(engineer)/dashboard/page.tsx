@@ -31,20 +31,17 @@ async function getProjects(userId: string) {
   });
 }
 
-async function getDashboardStats(userId: string) {
-  const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+async function getDashboardStats(userId: string, lastReadAt: Date | null) {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  // Count comments newer than lastReadAt (or last 7 days if never read)
+  const commentCutoff = lastReadAt ?? sevenDaysAgo;
 
   const [active, delayed, completed, pendingComments] = await Promise.all([
     prisma.project.count({
       where: { engineerId: userId, status: "ACTIVE" },
     }),
     prisma.project.count({
-      where: {
-        engineerId: userId,
-        status: "ACTIVE",
-        estimatedEndDate: { lt: now },
-      },
+      where: { engineerId: userId, status: "DELAYED" },
     }),
     prisma.project.count({
       where: { engineerId: userId, status: "COMPLETED" },
@@ -52,7 +49,7 @@ async function getDashboardStats(userId: string) {
     prisma.comment.count({
       where: {
         authorId: null,
-        createdAt: { gte: sevenDaysAgo },
+        createdAt: { gte: commentCutoff },
         update: { project: { engineerId: userId } },
       },
     }),
@@ -69,9 +66,25 @@ export default async function DashboardPage() {
 
   await syncUser(user);
 
+  // Auto-mark overdue projects as DELAYED
+  await prisma.project.updateMany({
+    where: {
+      engineerId: user.id,
+      status: "ACTIVE",
+      estimatedEndDate: { lt: new Date() },
+    },
+    data: { status: "DELAYED" },
+  });
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { lastNotificationsReadAt: true },
+  });
+  const lastReadAt = dbUser?.lastNotificationsReadAt ?? null;
+
   const [projects, stats] = await Promise.all([
     getProjects(user.id).catch(() => []),
-    getDashboardStats(user.id).catch(() => ({ active: 0, delayed: 0, completed: 0, pendingComments: 0 })),
+    getDashboardStats(user.id, lastReadAt).catch(() => ({ active: 0, delayed: 0, completed: 0, pendingComments: 0 })),
   ]);
 
   const lastUpdated = projects[0]?.updatedAt ?? null;
@@ -85,14 +98,14 @@ export default async function DashboardPage() {
           <p className="text-sm text-gray-500 mt-0.5">Manage your active documentation</p>
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <button className="relative w-10 h-10 bg-white rounded-full border border-gray-100 shadow-sm flex items-center justify-center">
+          <Link href="/notifications" className="relative w-10 h-10 bg-white rounded-full border border-gray-100 shadow-sm flex items-center justify-center">
             <Bell size={18} className="text-gray-600" />
             {stats.pendingComments > 0 && (
               <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold">
                 {stats.pendingComments > 9 ? "9+" : stats.pendingComments}
               </span>
             )}
-          </button>
+          </Link>
           <Link href="/settings" className="w-10 h-10 bg-orange-300 rounded-full flex items-center justify-center text-white text-xs font-bold">
             {getInitials(user.email?.split("@")[0] ?? "U")}
           </Link>
