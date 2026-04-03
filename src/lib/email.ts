@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 export async function sendClientPortalEmail({
   clientName,
@@ -15,7 +17,7 @@ export async function sendClientPortalEmail({
   engineerName: string;
   portalUrl: string;
 }) {
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: process.env.RESEND_FROM_EMAIL ?? "Furniche <noreply@furniche.app>",
     to: clientEmail,
     subject: `Your project portal is ready — ${projectName}`,
@@ -122,7 +124,7 @@ export async function sendNewCommentEmail({
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const projectUrl = `${appUrl}/projects/${projectId}`;
 
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: process.env.RESEND_FROM_EMAIL ?? "Furniche <noreply@furniche.app>",
     to: engineerEmail,
     subject: `New comment from ${clientName} — ${projectName}`,
@@ -189,7 +191,7 @@ export async function sendUpdatePublishedEmail({
   updateTitle: string;
   portalUrl: string;
 }) {
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: process.env.RESEND_FROM_EMAIL ?? "Furniche <noreply@furniche.app>",
     to: clientEmail,
     subject: `New update on your project — ${projectName}`,
