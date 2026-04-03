@@ -36,13 +36,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col items-center justify-center px-6 py-12">
       {/* Logo */}
       <div className="flex flex-col items-center mb-8">
-        <div className="w-16 h-16 bg-brand-100 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-            <rect x="2" y="7" width="20" height="14" rx="2" className="fill-brand-600" />
-            <rect x="6" y="3" width="12" height="6" rx="1" className="fill-brand-400" />
-            <rect x="9" y="11" width="6" height="4" rx="1" fill="white" />
-          </svg>
-        </div>
+        <img src="/logo.png" alt="Furniche" className="w-16 h-16 mb-4" />
         <h1 className="text-2xl font-bold text-gray-900">Furniche</h1>
         <p className="text-sm text-gray-500 mt-1">Engineer Project Documentation</p>
       </div>

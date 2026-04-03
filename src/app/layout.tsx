@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 export const metadata: Metadata = {
   title: "Furniche — Engineer Project Documentation",
   description: "Document furnishing progress and share real-time updates with clients.",
+  icons: { icon: "/logo.png" },
 };
 
 export default function RootLayout({
