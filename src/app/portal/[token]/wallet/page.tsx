@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import {
   Wallet, DollarSign, CheckCircle2, XCircle, Clock,
@@ -38,10 +38,8 @@ function fmt(n: number) {
 export default function ClientWalletPage() {
   const params = useParams();
   const token = params.token as string;
-  const projectId = params.projectId as string | undefined;
 
   const [data, setData] = useState<WalletData | null>(null);
-  const [resolvedProjectId, setResolvedProjectId] = useState<string | null>(projectId ?? null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
@@ -53,19 +51,9 @@ export default function ClientWalletPage() {
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
   const supabase = createClient();
 
-  // Resolve project ID from token first
-  useEffect(() => {
-    if (resolvedProjectId) return;
-    fetch(`/api/portal/token?token=${token}`)
-      .then((r) => r.json())
-      .then((d) => { if (d.projectId) setResolvedProjectId(d.projectId); })
-      .catch(() => {});
-  }, [token, resolvedProjectId]);
-
-  const load = useCallback(async () => {
-    if (!resolvedProjectId) return;
+  async function load() {
     try {
-      const res = await fetch(`/api/projects/${resolvedProjectId}/payments?token=${token}`);
+      const res = await fetch(`/api/portal/payments?token=${token}`);
       if (!res.ok) throw new Error();
       setData(await res.json());
     } catch {
@@ -73,9 +61,9 @@ export default function ClientWalletPage() {
     } finally {
       setLoading(false);
     }
-  }, [resolvedProjectId, token]);
+  }
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -100,15 +88,12 @@ export default function ClientWalletPage() {
 
   async function handleSubmitDeposit() {
     if (!depositAmount || parseFloat(depositAmount) <= 0) { toast.error("Enter a valid amount"); return; }
-    if (!resolvedProjectId) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/projects/${resolvedProjectId}/payments`, {
+      const res = await fetch(`/api/portal/payments?token=${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "DEPOSIT",
-          token,
           amount: parseFloat(depositAmount),
           description: depositNote || null,
           screenshotUrl,
@@ -127,8 +112,11 @@ export default function ClientWalletPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 size={24} className="animate-spin text-brand-600" />
+      <div className="min-h-screen bg-gray-50 max-w-md mx-auto">
+        <PortalNav token={token} />
+        <div className="flex items-center justify-center h-screen">
+          <Loader2 size={24} className="animate-spin text-brand-600" />
+        </div>
       </div>
     );
   }
@@ -139,6 +127,7 @@ export default function ClientWalletPage() {
   return (
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto pb-24">
       <PortalNav token={token} />
+
       {/* Header */}
       <div className="bg-white px-4 pt-10 pb-4 border-b border-gray-100">
         <p className="text-xs font-semibold text-brand-600 uppercase tracking-widest mb-1">
@@ -153,11 +142,7 @@ export default function ClientWalletPage() {
           <p className="text-xs font-bold uppercase tracking-widest text-white/70 mb-1">Balance Due</p>
           <p className="text-4xl font-extrabold text-white">{fmt(Math.abs(balance))}</p>
           <p className="text-sm text-white/80 mt-1">
-            {isOwed
-              ? "You still owe this amount"
-              : balance < 0
-              ? "You have a credit"
-              : "All payments settled"}
+            {isOwed ? "You still owe this amount" : balance < 0 ? "You have a credit" : "All payments settled"}
           </p>
           <div className="mt-4 grid grid-cols-3 gap-2">
             <div className="bg-white/10 rounded-xl p-2.5 text-center">
@@ -219,7 +204,6 @@ export default function ClientWalletPage() {
               />
             </div>
 
-            {/* Screenshot upload */}
             <div>
               <label className="text-xs font-semibold text-gray-600 block mb-1.5">Payment Screenshot (optional)</label>
               {screenshotUrl ? (
@@ -265,24 +249,22 @@ export default function ClientWalletPage() {
         {/* Transactions */}
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">History</p>
-          {data?.payments.length === 0 ? (
+          {!data || data.payments.length === 0 ? (
             <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
               <Wallet size={28} className="text-gray-300 mx-auto mb-2" />
               <p className="text-sm text-gray-400">No payment activity yet</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {data?.payments.map((p) => (
+              {data.payments.map((p) => (
                 <div key={p.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
                   <div className="flex items-start gap-3">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                       p.type === "REQUEST" ? "bg-blue-50" : "bg-green-50"
                     }`}>
-                      {p.type === "REQUEST" ? (
-                        <DollarSign size={16} className="text-brand-600" />
-                      ) : (
-                        <Upload size={16} className="text-green-600" />
-                      )}
+                      {p.type === "REQUEST"
+                        ? <DollarSign size={16} className="text-brand-600" />
+                        : <Upload size={16} className="text-green-600" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -297,8 +279,12 @@ export default function ClientWalletPage() {
                           : p.status === "REJECTED" ? "bg-red-100 text-red-700"
                           : "bg-amber-100 text-amber-700"
                         }`}>
-                          {p.status === "VERIFIED" ? <CheckCircle2 size={9} /> : p.status === "REJECTED" ? <XCircle size={9} /> : <Clock size={9} />}
-                          {p.status === "VERIFIED" ? "Verified" : p.status === "REJECTED" ? "Rejected" : "Awaiting verification"}
+                          {p.status === "VERIFIED" ? <CheckCircle2 size={9} />
+                            : p.status === "REJECTED" ? <XCircle size={9} />
+                            : <Clock size={9} />}
+                          {p.status === "VERIFIED" ? "Verified"
+                            : p.status === "REJECTED" ? "Rejected"
+                            : "Awaiting verification"}
                         </span>
                       </div>
                       {p.description && <p className="text-xs text-gray-500 mt-0.5">{p.description}</p>}
@@ -319,14 +305,11 @@ export default function ClientWalletPage() {
           )}
         </div>
 
-        <div className="pb-4">
-          <p className="text-[10px] text-center text-gray-300 uppercase tracking-widest">
-            Furniche Secure Payment Portal
-          </p>
-        </div>
+        <p className="text-[10px] text-center text-gray-300 uppercase tracking-widest pb-4">
+          Furniche Secure Payment Portal
+        </p>
       </div>
 
-      {/* Screenshot lightbox */}
       {selectedScreenshot && (
         <div
           className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
