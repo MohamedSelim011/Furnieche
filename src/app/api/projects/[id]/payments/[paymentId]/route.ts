@@ -1,0 +1,52 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
+import { syncUser } from "@/lib/sync-user";
+
+// PATCH /api/projects/[id]/payments/[paymentId] — engineer verifies or rejects a deposit
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; paymentId: string }> }
+) {
+  const { id, paymentId } = await params;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  await syncUser(user);
+
+  const project = await prisma.project.findFirst({ where: { id, engineerId: user.id } });
+  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const { status, amount, description } = await req.json();
+
+  const updated = await prisma.payment.update({
+    where: { id: paymentId, projectId: id },
+    data: {
+      ...(status && { status }),
+      ...(amount !== undefined && { amount: parseFloat(amount) }),
+      ...(description !== undefined && { description }),
+    },
+  });
+
+  return NextResponse.json(updated);
+}
+
+// DELETE /api/projects/[id]/payments/[paymentId] — engineer deletes a payment
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string; paymentId: string }> }
+) {
+  const { id, paymentId } = await params;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  await syncUser(user);
+
+  const project = await prisma.project.findFirst({ where: { id, engineerId: user.id } });
+  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await prisma.payment.delete({ where: { id: paymentId, projectId: id } });
+  return NextResponse.json({ ok: true });
+}

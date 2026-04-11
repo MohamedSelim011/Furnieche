@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { formatDate, formatRelativeTime, formatTime } from "@/lib/utils";
 import { CommentForm } from "./comment-form";
 import { ScopeSection } from "./scope-section";
+import { PortalNav } from "./portal-nav";
 
 type PortalResult =
   | { status: "ok"; data: NonNullable<Awaited<ReturnType<typeof fetchAccessToken>>> }
@@ -78,7 +79,8 @@ export default async function PortalPage({
   const statusBadge = getStatusBadge(project.status);
 
   return (
-    <div className="min-h-screen bg-gray-50 max-w-md mx-auto pb-12">
+    <div className="min-h-screen bg-gray-50 max-w-md mx-auto pb-24">
+      <PortalNav token={token} />
       {/* Header */}
       <div className="bg-white px-4 pt-10 pb-4 border-b border-gray-100">
         <div className="flex items-start justify-between">

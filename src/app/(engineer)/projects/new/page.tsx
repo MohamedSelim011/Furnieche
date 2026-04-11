@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { X, MapPin, ShieldCheck, ChevronRight, User, Mail, Calendar, Tag } from "lucide-react";
+import { X, MapPin, ShieldCheck, ChevronRight, User, Mail, Calendar, Tag, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,7 @@ type Step1Data = {
 type Step2Data = {
   clientName: string;
   clientEmail: string;
+  budget: string;
 };
 
 export default function NewProjectPage() {
@@ -36,6 +37,7 @@ export default function NewProjectPage() {
   const [step2, setStep2] = useState<Step2Data>({
     clientName: "",
     clientEmail: "",
+    budget: "",
   });
   const [useDefaultSteps, setUseDefaultSteps] = useState(true);
 
@@ -47,7 +49,9 @@ export default function NewProjectPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...step1,
-          ...step2,
+          clientName: step2.clientName,
+          clientEmail: step2.clientEmail,
+          budget: step2.budget ? parseFloat(step2.budget) : null,
           steps: useDefaultSteps ? DEFAULT_STEPS : [],
         }),
       });
@@ -240,6 +244,21 @@ export default function NewProjectPage() {
                 <p className="text-xs text-gray-400 mt-1">
                   A secure access link will be generated for this email.
                 </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="budget">Project Budget <span className="text-gray-400 font-normal">(optional)</span></Label>
+                <Input
+                  id="budget"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 25000"
+                  value={step2.budget}
+                  onChange={(e) => setStep2({ ...step2, budget: e.target.value })}
+                  icon={<DollarSign size={15} />}
+                />
+                <p className="text-xs text-gray-400">Total project cost the client will pay. Can be set or adjusted later.</p>
               </div>
 
               <div className="bg-green-50 border border-green-100 rounded-2xl p-4 flex items-start gap-3">

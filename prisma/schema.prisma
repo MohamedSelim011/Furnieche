@@ -41,6 +41,17 @@ enum MediaType {
   VIDEO
 }
 
+enum PaymentType {
+  REQUEST
+  DEPOSIT
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
 // ─── User ─────────────────────────────────────────────────────────────────────
 
 model User {
@@ -92,6 +103,7 @@ model Project {
   startDate        DateTime?
   estimatedEndDate DateTime?
   progressPercent  Int             @default(0)
+  budget           Float?
 
   engineerId String
   engineer   User    @relation(fields: [engineerId], references: [id])
@@ -105,8 +117,26 @@ model Project {
   updates      ProjectUpdate[]
   accessTokens AccessToken[]
   auditLogs    AuditLog[]
+  payments     Payment[]
 
   @@map("projects")
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+
+model Payment {
+  id            String        @id @default(uuid())
+  projectId     String
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type          PaymentType
+  status        PaymentStatus @default(PENDING)
+  amount        Float
+  description   String?
+  screenshotUrl String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("payments")
 }
 
 // ─── Step Templates (Predefined) ─────────────────────────────────────────────

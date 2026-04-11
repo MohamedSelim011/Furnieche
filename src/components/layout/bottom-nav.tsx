@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PlusCircle, Settings } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Settings, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/projects/new", label: "New Project", icon: PlusCircle },
+  { href: "/projects/new", label: "New", icon: PlusCircle },
+  { href: "/wallet", label: "Wallet", icon: Wallet },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

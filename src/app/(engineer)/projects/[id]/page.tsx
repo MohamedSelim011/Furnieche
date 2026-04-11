@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
   ArrowLeft, Plus, Share2, Clock, MapPin,
-  CheckCircle2, Circle, MinusCircle, ChevronRight,
+  CheckCircle2, Circle, MinusCircle, ChevronRight, Wallet,
 } from "lucide-react";
 import { PageShell } from "@/components/layout/page-shell";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +62,13 @@ export default async function ProjectDetailPage({
           <div className="flex items-center gap-2">
             <DeleteProjectButton projectId={id} />
             {portalToken && <SharePortalButton token={portalToken} projectName={project.name} />}
+            <Link
+              href={`/projects/${id}/wallet`}
+              className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center"
+              title="Project Wallet"
+            >
+              <Wallet size={17} className="text-gray-600" />
+            </Link>
             <Link
               href={`/projects/${id}/update/new`}
               className="h-9 px-4 bg-brand-600 text-white rounded-xl text-sm font-semibold flex items-center gap-1.5"

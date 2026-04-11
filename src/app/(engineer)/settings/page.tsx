@@ -429,7 +429,9 @@ function BillingTab({ currentPlan }: { currentPlan: PlanKey }) {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-3">
-          Payment integration coming soon — contact us to upgrade manually
+          Payment integration coming soon —{" "}
+          <a href="/pricing" className="text-brand-600 font-semibold">view pricing page</a>
+          {" "}or contact us to upgrade manually
         </p>
       </section>
     </div>

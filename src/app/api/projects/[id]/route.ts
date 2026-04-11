@@ -15,7 +15,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { status } = body;
+  const { status, budget } = body;
 
   const validStatuses = ["ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED", "DELAYED"];
   if (status && !validStatuses.includes(status)) {
@@ -30,7 +30,10 @@ export async function PATCH(
 
     const updated = await prisma.project.update({
       where: { id },
-      data: { ...(status && { status }) },
+      data: {
+        ...(status && { status }),
+        ...(budget !== undefined && { budget: budget === null ? null : parseFloat(budget) }),
+      },
     });
 
     return NextResponse.json(updated);

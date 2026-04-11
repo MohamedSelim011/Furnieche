@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, category, clientName, clientEmail, location, startDate, estimatedEndDate, steps } = body;
+  const { name, category, clientName, clientEmail, location, startDate, estimatedEndDate, steps, budget } = body;
 
   if (!name || !clientName || !clientEmail) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
       location: location || null,
       startDate: startDate ? new Date(startDate) : null,
       estimatedEndDate: estimatedEndDate ? new Date(estimatedEndDate) : null,
+      budget: budget ?? null,
       engineerId: user.id,
       steps: steps?.length
         ? {
