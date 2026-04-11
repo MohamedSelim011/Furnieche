@@ -18,7 +18,7 @@ export async function sendClientPortalEmail({
   portalUrl: string;
 }) {
   const { error } = await getResend().emails.send({
-    from: process.env.RESEND_FROM_EMAIL ?? "Furniche <noreply@furniche.app>",
+    from: process.env.RESEND_FROM_EMAIL ?? "Furniche <noreply@teqniads.com>",
     to: clientEmail,
     subject: `Your project portal is ready — ${projectName}`,
     html: `
@@ -125,7 +125,7 @@ export async function sendNewCommentEmail({
   const projectUrl = `${appUrl}/projects/${projectId}`;
 
   const { error } = await getResend().emails.send({
-    from: process.env.RESEND_FROM_EMAIL ?? "Furniche <noreply@furniche.app>",
+    from: process.env.RESEND_FROM_EMAIL ?? "Furniche <noreply@teqniads.com>",
     to: engineerEmail,
     subject: `New comment from ${clientName} — ${projectName}`,
     html: `
@@ -192,7 +192,7 @@ export async function sendUpdatePublishedEmail({
   portalUrl: string;
 }) {
   const { error } = await getResend().emails.send({
-    from: process.env.RESEND_FROM_EMAIL ?? "Furniche <noreply@furniche.app>",
+    from: process.env.RESEND_FROM_EMAIL ?? "Furniche <noreply@teqniads.com>",
     to: clientEmail,
     subject: `New update on your project — ${projectName}`,
     html: `

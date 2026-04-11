@@ -115,7 +115,7 @@ export default function PricingPage() {
 
                 {/* CTA */}
                 <Link
-                  href={key === "business" ? "mailto:hello@furniche.app" : "/register"}
+                  href={key === "business" ? "mailto:hello@teqniads.com" : "/register"}
                   className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold transition-colors ${
                     isPro
                       ? "bg-brand-600 text-white hover:bg-brand-700"
@@ -137,7 +137,7 @@ export default function PricingPage() {
           All plans include a secure client portal, progress tracking, and photo/video uploads.
           <br />
           Need a custom plan?{" "}
-          <a href="mailto:hello@furniche.app" className="text-brand-600 font-semibold">
+          <a href="mailto:hello@teqniads.com" className="text-brand-600 font-semibold">
             Contact us
           </a>
           .
