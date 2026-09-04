@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Building2, Shield, Trash2, Camera, LogOut, Eye, EyeOff, Loader2, CheckCircle2, Headphones, Zap } from "lucide-react";
+import { Building2, Shield, Trash2, Camera, LogOut, Eye, EyeOff, Loader2, CheckCircle2, Headphones, Zap, Users, Mail, X, Crown } from "lucide-react";
 import { PageShell } from "@/components/layout/page-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PLANS, getPlan, type PlanKey } from "@/lib/plans";
 
-const tabs = ["Company", "Account", "Billing"] as const;
+const tabs = ["Company", "Team", "Account", "Billing"] as const;
 type Tab = (typeof tabs)[number];
 
 export default function SettingsPage() {
@@ -137,6 +137,7 @@ export default function SettingsPage() {
             onLogoUpload={handleLogoUpload}
           />
         )}
+        {activeTab === "Team" && <TeamTab />}
         {activeTab === "Account" && <AccountTab />}
         {activeTab === "Billing" && <BillingTab currentPlan={currentPlan} />}
       </div>
@@ -223,6 +224,153 @@ function CompanyTab({
           <Trash2 size={16} /> Delete Company Profile
         </button>
       </div>
+    </div>
+  );
+}
+
+type TeamMember = { id: string; name: string | null; email: string; role: "ENGINEER" | "ADMIN" };
+type TeamInvite = { id: string; email: string; role: "ENGINEER" | "ADMIN" };
+
+function TeamTab() {
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [invites, setInvites] = useState<TeamInvite[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+
+  function load() {
+    fetch("/api/settings/team")
+      .then((r) => r.json())
+      .then((data) => {
+        setMembers(data.members ?? []);
+        setInvites(data.invites ?? []);
+        setIsAdmin(Boolean(data.isAdmin));
+      })
+      .catch(() => toast.error("Failed to load team"))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(load, []);
+
+  async function handleInvite() {
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    try {
+      const res = await fetch("/api/settings/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to send invite");
+      toast.success(`Invite sent to ${inviteEmail}`);
+      setInviteEmail("");
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send invite");
+    } finally {
+      setInviting(false);
+    }
+  }
+
+  async function revokeInvite(id: string) {
+    try {
+      const res = await fetch(`/api/settings/team/invites/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setInvites((prev) => prev.filter((i) => i.id !== id));
+      toast.success("Invite revoked");
+    } catch {
+      toast.error("Failed to revoke invite");
+    }
+  }
+
+  async function removeMember(id: string) {
+    if (!confirm("Remove this teammate from your company?")) return;
+    try {
+      const res = await fetch(`/api/settings/team/members/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to remove teammate");
+      }
+      setMembers((prev) => prev.filter((m) => m.id !== id));
+      toast.success("Teammate removed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove teammate");
+    }
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-8"><Loader2 size={22} className="text-brand-600 animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Team Members</p>
+        <div className="space-y-2">
+          {members.map((m) => (
+            <div key={m.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">
+              <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
+                <Users size={16} className="text-brand-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate">{m.name || m.email}</p>
+                <p className="text-xs text-gray-400 truncate">{m.email}</p>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1 shrink-0">
+                {m.role === "ADMIN" && <Crown size={11} className="text-amber-500" />}
+                {m.role}
+              </span>
+              {isAdmin && (
+                <button onClick={() => removeMember(m.id)} className="shrink-0">
+                  <X size={14} className="text-gray-300" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {invites.length > 0 && (
+        <section>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Pending Invites</p>
+          <div className="space-y-2">
+            {invites.map((inv) => (
+              <div key={inv.id} className="bg-amber-50 rounded-2xl px-4 py-3 flex items-center gap-3">
+                <Mail size={16} className="text-amber-500 shrink-0" />
+                <span className="flex-1 text-sm text-amber-800 truncate">{inv.email}</span>
+                {isAdmin && (
+                  <button onClick={() => revokeInvite(inv.id)} className="text-xs text-amber-600 font-semibold shrink-0">
+                    Revoke
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {isAdmin && (
+        <section>
+          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Invite a Teammate</p>
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="teammate@company.com"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              icon={<Mail size={15} />}
+            />
+            <Button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
+              {inviting ? <Loader2 size={14} className="animate-spin" /> : "Invite"}
+            </Button>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Invited teammates can be added to individual projects with editor or view-only access — see a project&apos;s Share section.
+          </p>
+        </section>
+      )}
     </div>
   );
 }

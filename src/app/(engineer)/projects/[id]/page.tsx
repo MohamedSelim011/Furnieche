@@ -1,25 +1,26 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
-  ArrowLeft, Plus, Share2, Clock, MapPin,
-  CheckCircle2, Circle, MinusCircle, ChevronRight, Wallet,
+  ArrowLeft, Plus, Clock, MapPin,
+  ChevronRight, Wallet, FolderOpen, Eye,
 } from "lucide-react";
 import { PageShell } from "@/components/layout/page-shell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 import { formatDate, formatRelativeTime } from "@/lib/utils";
+import { getProjectAccess, canEdit } from "@/lib/authz";
 import { SharePortalButton } from "./share-portal-button";
 import { DeleteProjectButton } from "./delete-project-button";
+import { ShareSection } from "./share-section";
 
-async function getProject(id: string, userId: string) {
-  return prisma.project.findFirst({
-    where: { id, engineerId: userId },
+async function getProject(id: string) {
+  return prisma.project.findUnique({
+    where: { id },
     include: {
-      steps: { orderBy: { order: "asc" } },
+      folders: { orderBy: { order: "asc" } },
       updates: {
         where: { isPublished: true },
         include: { media: true, comments: true },
@@ -27,6 +28,7 @@ async function getProject(id: string, userId: string) {
         take: 5,
       },
       accessTokens: { where: { isActive: true }, take: 1 },
+      members: { include: { user: { select: { id: true, name: true, email: true } } } },
     },
   });
 }
@@ -43,13 +45,33 @@ export default async function ProjectDetailPage({
 
   await syncUser(user);
 
-  const project = await getProject(id, user.id);
+  const access = await getProjectAccess(user.id, id);
+  if (!access.role) notFound();
+
+  const project = await getProject(id);
   if (!project) notFound();
 
-  const totalSteps = project.steps.length;
-  const completedSteps = project.steps.filter((s) => s.status === "COMPLETED").length;
-  const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+  const editable = canEdit(access);
+
+  const totalFolders = project.folders.length;
+  const progress =
+    totalFolders > 0
+      ? Math.round(project.folders.reduce((sum, f) => sum + f.progressPercent, 0) / totalFolders)
+      : 0;
   const portalToken = project.accessTokens[0]?.token;
+
+  // Company teammates available to add (same company, not already a member, not the owner).
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { companyId: true } });
+  const availableTeammates =
+    access.role === "OWNER" && dbUser?.companyId
+      ? await prisma.user.findMany({
+          where: {
+            companyId: dbUser.companyId,
+            id: { notIn: [project.engineerId, ...project.members.map((m) => m.userId)] },
+          },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
 
   return (
     <PageShell>
@@ -60,21 +82,29 @@ export default async function ProjectDetailPage({
             <ArrowLeft size={18} className="text-gray-600" />
           </Link>
           <div className="flex items-center gap-2">
-            <DeleteProjectButton projectId={id} />
-            {portalToken && <SharePortalButton token={portalToken} projectName={project.name} />}
-            <Link
-              href={`/projects/${id}/wallet`}
-              className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center"
-              title="Project Wallet"
-            >
-              <Wallet size={17} className="text-gray-600" />
-            </Link>
-            <Link
-              href={`/projects/${id}/update/new`}
-              className="h-9 px-4 bg-brand-600 text-white rounded-xl text-sm font-semibold flex items-center gap-1.5"
-            >
-              <Plus size={16} /> Update
-            </Link>
+            {access.role === "OWNER" && <DeleteProjectButton projectId={id} />}
+            {portalToken && editable && <SharePortalButton token={portalToken} projectName={project.name} />}
+            {access.canViewBudget && (
+              <Link
+                href={`/projects/${id}/wallet`}
+                className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center"
+                title="Project Wallet"
+              >
+                <Wallet size={17} className="text-gray-600" />
+              </Link>
+            )}
+            {editable ? (
+              <Link
+                href={`/projects/${id}/update/new`}
+                className="h-9 px-4 bg-brand-600 text-white rounded-xl text-sm font-semibold flex items-center gap-1.5"
+              >
+                <Plus size={16} /> Update
+              </Link>
+            ) : (
+              <span className="h-9 px-3 bg-gray-100 text-gray-500 rounded-xl text-xs font-semibold flex items-center gap-1.5">
+                <Eye size={14} /> View only
+              </span>
+            )}
           </div>
         </div>
 
@@ -107,42 +137,61 @@ export default async function ProjectDetailPage({
         </div>
         <Progress value={progress} className="mb-3" />
         <div className="flex items-center justify-between text-xs text-gray-400">
-          <span>{completedSteps} of {totalSteps} steps completed</span>
+          <span>{totalFolders} folder{totalFolders === 1 ? "" : "s"}</span>
           {project.estimatedEndDate && (
             <span>Est. {formatDate(project.estimatedEndDate)}</span>
           )}
         </div>
       </div>
 
-      {/* Steps Section */}
+      {/* Folders Section */}
       <div className="px-4 mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold text-gray-900">Project Steps</h2>
-          <Link href={`/projects/${id}/steps`} className="text-xs text-brand-600 font-semibold flex items-center gap-1">
+          <h2 className="font-bold text-gray-900">Folders</h2>
+          <Link href={`/projects/${id}/folders`} className="text-xs text-brand-600 font-semibold flex items-center gap-1">
             Manage <ChevronRight size={12} />
           </Link>
         </div>
 
-        {totalSteps === 0 ? (
-          <Link href={`/projects/${id}/steps`}>
+        {totalFolders === 0 ? (
+          <Link href={`/projects/${id}/folders`}>
             <div className="bg-blue-50 border border-blue-100 border-dashed rounded-2xl p-4 text-center">
-              <p className="text-sm font-semibold text-brand-600">No steps yet</p>
-              <p className="text-xs text-gray-500 mt-1">Tap to add predefined or custom steps</p>
+              <p className="text-sm font-semibold text-brand-600">No folders yet</p>
+              <p className="text-xs text-gray-500 mt-1">Tap to add Contract, Design, Site, or custom folders</p>
             </div>
           </Link>
         ) : (
           <div className="space-y-2">
-            {project.steps.slice(0, 5).map((step) => (
-              <StepRow key={step.id} step={step} projectId={id} />
+            {project.folders.slice(0, 5).map((folder) => (
+              <FolderRow key={folder.id} folder={folder} projectId={id} />
             ))}
-            {project.steps.length > 5 && (
-              <Link href={`/projects/${id}/steps`} className="block text-center text-xs text-brand-600 font-semibold py-2">
-                View all {project.steps.length} steps →
+            {project.folders.length > 5 && (
+              <Link href={`/projects/${id}/folders`} className="block text-center text-xs text-brand-600 font-semibold py-2">
+                View all {project.folders.length} folders →
               </Link>
             )}
           </div>
         )}
       </div>
+
+      {/* Shared With */}
+      {(access.role === "OWNER" || project.members.length > 0) && (
+        <div className="px-4 mb-4">
+          <ShareSection
+            projectId={id}
+            isOwner={access.role === "OWNER"}
+            members={project.members.map((m) => ({
+              id: m.id,
+              userId: m.userId,
+              name: m.user.name,
+              email: m.user.email,
+              role: m.role,
+              canViewBudget: m.canViewBudget,
+            }))}
+            availableTeammates={availableTeammates}
+          />
+        </div>
+      )}
 
       {/* Recent Updates */}
       <div className="px-4 mb-4">
@@ -196,60 +245,25 @@ export default async function ProjectDetailPage({
   );
 }
 
-function InProgressPie() {
-  // SVG donut showing ~65% arc to indicate in-progress
-  const r = 8;
-  const cx = 10;
-  const cy = 10;
-  const circumference = 2 * Math.PI * r; // ~50.27
-  const filled = circumference * 0.65;   // ~32.67
-
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#dbeafe" strokeWidth="2.5" />
-      <circle
-        cx={cx} cy={cy} r={r}
-        fill="none"
-        stroke="#2563eb"
-        strokeWidth="2.5"
-        strokeDasharray={`${filled} ${circumference}`}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cy})`}
-      />
-    </svg>
-  );
-}
-
-function StepRow({ step, projectId }: { step: { id: string; name: string; status: string; order: number }; projectId: string }) {
-  const isCompleted = step.status === "COMPLETED";
-  const isInProgress = step.status === "IN_PROGRESS";
-  const isSkipped = step.status === "SKIPPED";
-
+function FolderRow({ folder, projectId }: { folder: { id: string; name: string; progressPercent: number }; projectId: string }) {
   return (
     <Link
-      href={`/projects/${projectId}/updates?stepId=${step.id}`}
+      href={`/projects/${projectId}/folders/${folder.id}`}
       className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 p-3 active:bg-gray-50"
     >
-      <div className="shrink-0">
-        {isCompleted ? (
-          <CheckCircle2 size={20} className="text-green-500" />
-        ) : isInProgress ? (
-          <InProgressPie />
-        ) : isSkipped ? (
-          <MinusCircle size={20} className="text-amber-400" />
-        ) : (
-          <Circle size={20} className="text-gray-200" />
-        )}
+      <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
+        <FolderOpen size={16} className="text-brand-600" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate ${
-          isCompleted ? "line-through text-gray-400"
-          : isSkipped ? "line-through text-amber-400"
-          : "text-gray-800"
-        }`}>
-          {step.name}
-        </p>
+        <p className="text-sm font-medium text-gray-800 truncate">{folder.name}</p>
+        <div className="h-1 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
+          <div
+            className="h-full bg-brand-600 rounded-full transition-all"
+            style={{ width: `${folder.progressPercent}%` }}
+          />
+        </div>
       </div>
+      <span className="text-xs font-semibold text-gray-400 shrink-0">{folder.progressPercent}%</span>
       <ChevronRight size={14} className="text-gray-300 shrink-0" />
     </Link>
   );

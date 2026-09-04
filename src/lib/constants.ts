@@ -1,43 +1,20 @@
-export const DEFAULT_STEPS = [
+// The three folders every project starts with. Engineers can rename, add to,
+// or delete these after creation — this is just the starting scaffold.
+export const DEFAULT_FOLDERS = [
   {
-    name: "Site Handover & Inspection",
-    description: "Apartment handover confirmation, initial condition documentation, measurements verification, issue recording",
+    name: "Contract",
+    description: "Signed contract, scope of work, and client agreements",
     order: 1,
   },
   {
-    name: "Design Finalization",
-    description: "Final layout approval, material selection, client confirmation uploads, final drawings documentation",
+    name: "Design",
+    description: "Layout approvals, material selections, drawings, renders",
     order: 2,
   },
   {
-    name: "Demolition & Preparation",
-    description: "Removal work, surface preparation, electrical rough-ins, plumbing rough-ins",
+    name: "Site",
+    description: "Site photos, inspection reports, and on-site progress",
     order: 3,
-  },
-  {
-    name: "Core Installation",
-    description: "Flooring, ceilings, walls finishing, tiling, electrical installations, plumbing installations",
-    order: 4,
-  },
-  {
-    name: "Custom Furniture Production",
-    description: "Kitchen cabinets, wardrobes, TV units, storage units",
-    order: 5,
-  },
-  {
-    name: "Furniture Installation",
-    description: "Delivery documentation, installation confirmation, alignment & finishing checks",
-    order: 6,
-  },
-  {
-    name: "Final Finishing",
-    description: "Paint touch-ups, silicone finishing, cleaning, snag list",
-    order: 7,
-  },
-  {
-    name: "Final Handover",
-    description: "Client inspection, issue log, completion confirmation, sign-off documentation",
-    order: 8,
   },
 ] as const;
 

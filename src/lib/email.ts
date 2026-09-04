@@ -106,6 +106,66 @@ export async function sendClientPortalEmail({
   if (error) throw error;
 }
 
+export async function sendCompanyInviteEmail({
+  inviteEmail,
+  inviterName,
+  companyName,
+  inviteUrl,
+}: {
+  inviteEmail: string;
+  inviterName: string;
+  companyName: string;
+  inviteUrl: string;
+}) {
+  const { error } = await getResend().emails.send({
+    from: "Furniche <noreply@teqniads.com>",
+    to: inviteEmail,
+    subject: `${inviterName} invited you to join ${companyName} on Furniche`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:#2563eb;padding:24px 32px;">
+              <h1 style="color:#ffffff;font-size:20px;font-weight:700;margin:0;">🪑 Furniche</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <p style="color:#374151;font-size:15px;margin:0 0 8px;">Hi,</p>
+              <p style="color:#374151;font-size:15px;line-height:1.6;margin:0 0 20px;">
+                <strong>${inviterName}</strong> invited you to join <strong>${companyName}</strong>'s team on Furniche.
+              </p>
+              <div style="text-align:center;">
+                <a href="${inviteUrl}"
+                   style="display:inline-block;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:10px;">
+                  Accept Invite →
+                </a>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f8fafc;padding:16px 32px;border-top:1px solid #f3f4f6;">
+              <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0;">Powered by Furniche · Secure Project Documentation</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim(),
+  });
+
+  if (error) throw error;
+}
+
 export async function sendNewCommentEmail({
   engineerEmail,
   engineerName,

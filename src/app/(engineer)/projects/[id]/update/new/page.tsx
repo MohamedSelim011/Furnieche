@@ -19,18 +19,10 @@ type UploadedFile = {
   error?: boolean;
 };
 
-type ProjectStep = {
+type ProjectFolder = {
   id: string;
   name: string;
-  status: string;
-  order: number;
-};
-
-const STEP_STATUS_LABEL: Record<string, string> = {
-  PENDING: "Not Started",
-  IN_PROGRESS: "In Progress",
-  COMPLETED: "Completed",
-  SKIPPED: "Skipped",
+  progressPercent: number;
 };
 
 export default function NewUpdatePage() {
@@ -44,8 +36,8 @@ export default function NewUpdatePage() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState(UPDATE_CATEGORIES[0]);
   const [location, setLocation] = useState("");
-  const [stepId, setStepId] = useState<string>(searchParams.get("stepId") ?? "");
-  const [steps, setSteps] = useState<ProjectStep[]>([]);
+  const [folderId, setFolderId] = useState<string>(searchParams.get("folderId") ?? "");
+  const [folders, setFolders] = useState<ProjectFolder[]>([]);
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -54,9 +46,9 @@ export default function NewUpdatePage() {
   const autoStamp = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
   useEffect(() => {
-    fetch(`/api/projects/${id}/steps`)
+    fetch(`/api/projects/${id}/folders`)
       .then((r) => r.json())
-      .then((data: ProjectStep[]) => setSteps(data))
+      .then((data: ProjectFolder[]) => setFolders(data))
       .catch(() => {});
   }, [id]);
 
@@ -142,7 +134,7 @@ export default function NewUpdatePage() {
           description: description.trim() || null,
           category,
           location: location.trim() || null,
-          stepId: stepId || null,
+          folderId: folderId || null,
           media: mediaUrls,
           isPublished: true,
         }),
@@ -194,21 +186,21 @@ export default function NewUpdatePage() {
           />
         </div>
 
-        {/* Phase */}
+        {/* Folder */}
         <div className="space-y-1.5">
           <Label className="flex items-center gap-1.5">
             <Layers size={13} className="text-gray-400" />
-            Phase (optional)
+            Folder (optional)
           </Label>
           <select
-            value={stepId}
-            onChange={(e) => setStepId(e.target.value)}
+            value={folderId}
+            onChange={(e) => setFolderId(e.target.value)}
             className="flex h-12 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
-            <option value="">— Not linked to a phase —</option>
-            {steps.map((s) => (
-              <option key={s.id} value={s.id}>
-                Phase {s.order}: {s.name} · {STEP_STATUS_LABEL[s.status] ?? s.status}
+            <option value="">— Not linked to a folder —</option>
+            {folders.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name} · {f.progressPercent}%
               </option>
             ))}
           </select>

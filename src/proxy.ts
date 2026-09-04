@@ -51,7 +51,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Set persistent portal session cookie when client visits their portal link
-  const portalMatch = pathname.match(/^\/portal\/([^/]+)$/);
+  const portalMatch = pathname.match(/^\/portal\/([^/]+)/);
   if (portalMatch) {
     const portalToken = portalMatch[1];
     supabaseResponse.cookies.set(CLIENT_COOKIE_NAME, portalToken, {

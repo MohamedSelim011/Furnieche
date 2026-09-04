@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, User } from "lucide-react";
@@ -20,6 +20,15 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+
+  // Prefill from ?email= (e.g. arriving from a team invite link) without
+  // useSearchParams, which would force this static page into a Suspense
+  // boundary just for this optional convenience.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invited = params.get("email");
+    if (invited) setEmail(invited);
+  }, []);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();

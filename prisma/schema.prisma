@@ -15,6 +15,11 @@ enum UserRole {
   ADMIN
 }
 
+enum ProjectRole {
+  EDITOR
+  VIEWER
+}
+
 enum ProjectStatus {
   ACTIVE
   ON_HOLD
@@ -30,16 +35,10 @@ enum ProjectCategory {
   OTHER
 }
 
-enum StepStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  SKIPPED
-}
-
 enum MediaType {
   IMAGE
   VIDEO
+  DOCUMENT
 }
 
 enum PaymentType {
@@ -67,9 +66,11 @@ model User {
   updatedAt                  DateTime  @updatedAt
   lastNotificationsReadAt    DateTime?
 
-  projects  Project[]
-  comments  Comment[]
-  auditLogs AuditLog[]
+  projects       Project[]
+  comments       Comment[]
+  auditLogs      AuditLog[]
+  projectMembers ProjectMember[]
+  uploadedFiles  ProjectFile[]
 
   @@map("users")
 }
@@ -87,8 +88,25 @@ model Company {
 
   users    User[]
   projects Project[]
+  invites  CompanyInvite[]
 
   @@map("companies")
+}
+
+// ─── Company Invites (Team) ──────────────────────────────────────────────────
+
+model CompanyInvite {
+  id         String    @id @default(uuid())
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  email      String
+  role       UserRole  @default(ENGINEER)
+  token      String    @unique @default(uuid())
+  acceptedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("company_invites")
 }
 
 // ─── Project ──────────────────────────────────────────────────────────────────
@@ -114,13 +132,30 @@ model Project {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  steps        ProjectStep[]
+  folders      ProjectFolder[]
   updates      ProjectUpdate[]
   accessTokens AccessToken[]
   auditLogs    AuditLog[]
   payments     Payment[]
+  members      ProjectMember[]
 
   @@map("projects")
+}
+
+// ─── Project Members (sharing within a company) ──────────────────────────────
+
+model ProjectMember {
+  id            String      @id @default(uuid())
+  projectId     String
+  project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role          ProjectRole @default(VIEWER)
+  canViewBudget Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+
+  @@unique([projectId, userId])
+  @@map("project_members")
 }
 
 // ─── Payments ─────────────────────────────────────────────────────────────────
@@ -140,37 +175,43 @@ model Payment {
   @@map("payments")
 }
 
-// ─── Step Templates (Predefined) ─────────────────────────────────────────────
+// ─── Project Folders (phases: Contract, Design, Site, ...) ──────────────────
 
-model StepTemplate {
-  id          String  @id @default(uuid())
-  name        String
-  description String?
-  order       Int
-  isDefault   Boolean @default(true)
-  createdAt   DateTime @default(now())
+model ProjectFolder {
+  id              String   @id @default(uuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  order           Int
+  isDefault       Boolean  @default(false)
+  progressPercent Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  @@map("step_templates")
-}
-
-// ─── Project Steps ────────────────────────────────────────────────────────────
-
-model ProjectStep {
-  id          String     @id @default(uuid())
-  projectId   String
-  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name        String
-  description String?
-  order       Int
-  status      StepStatus @default(PENDING)
-  startDate   DateTime?
-  completedAt DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
+  files   ProjectFile[]
   updates ProjectUpdate[]
 
   @@map("project_steps")
+}
+
+// ─── Project Files (documents/photos inside a folder) ───────────────────────
+
+model ProjectFile {
+  id              String        @id @default(uuid())
+  folderId        String
+  folder          ProjectFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  name            String
+  url             String
+  type            MediaType     @default(DOCUMENT)
+  sizeBytes       Int?
+  progressPercent Int           @default(0)
+  uploadedById    String?
+  uploadedBy      User?         @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("project_files")
 }
 
 // ─── Project Updates ──────────────────────────────────────────────────────────
@@ -179,8 +220,8 @@ model ProjectUpdate {
   id          String   @id @default(uuid())
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  stepId      String?
-  step        ProjectStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  folderId    String?
+  folder      ProjectFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   title       String
   description String?
   location    String?

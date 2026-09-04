@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
+import { getProjectAccess, canEdit } from "@/lib/authz";
 
 export async function PATCH(
   req: NextRequest,
@@ -22,12 +23,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
-  try {
-    const project = await prisma.project.findFirst({
-      where: { id, engineerId: user.id },
-    });
-    if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const access = await getProjectAccess(user.id, id);
+  if (!canEdit(access)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (budget !== undefined && !access.canViewBudget) {
+    return NextResponse.json({ error: "You don't have access to budget details" }, { status: 403 });
+  }
 
+  try {
     const updated = await prisma.project.update({
       where: { id },
       data: {
@@ -54,10 +56,9 @@ export async function DELETE(
 
   const { id } = await params;
 
-  const project = await prisma.project.findFirst({
-    where: { id, engineerId: user.id },
-  });
-  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // Only the owner can delete the project outright.
+  const access = await getProjectAccess(user.id, id);
+  if (access.role !== "OWNER") return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await prisma.project.delete({ where: { id } });
   return new NextResponse(null, { status: 204 });

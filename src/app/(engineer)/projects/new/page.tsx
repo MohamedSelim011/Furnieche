@@ -6,7 +6,7 @@ import { X, MapPin, ShieldCheck, ChevronRight, User, Mail, Calendar, Tag, Dollar
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PROJECT_CATEGORIES, DEFAULT_STEPS } from "@/lib/constants";
+import { PROJECT_CATEGORIES } from "@/lib/constants";
 import { toast } from "sonner";
 
 type Step1Data = {
@@ -39,8 +39,6 @@ export default function NewProjectPage() {
     clientEmail: "",
     budget: "",
   });
-  const [useDefaultSteps, setUseDefaultSteps] = useState(true);
-
   async function handleSubmit() {
     setLoading(true);
     try {
@@ -52,7 +50,6 @@ export default function NewProjectPage() {
           clientName: step2.clientName,
           clientEmail: step2.clientEmail,
           budget: step2.budget ? parseFloat(step2.budget) : null,
-          steps: useDefaultSteps ? DEFAULT_STEPS : [],
         }),
       });
       if (!res.ok) throw new Error("Failed to create project");
@@ -156,7 +153,7 @@ export default function NewProjectPage() {
                 </div>
               </div>
 
-              {/* Predefined Steps Toggle */}
+              {/* Default Folders Notice */}
               <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-6 h-6 bg-brand-600 rounded-full flex items-center justify-center mt-0.5 shrink-0">
@@ -165,17 +162,10 @@ export default function NewProjectPage() {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-800">Use predefined steps ({DEFAULT_STEPS.length} steps)</p>
+                    <p className="text-sm font-semibold text-gray-800">Contract, Design &amp; Site folders included</p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Standard furnishing workflow — Site Survey → Design → Materials → Installation → Handover
+                      Every project starts with these three folders. You can rename, add, or remove folders anytime after creation.
                     </p>
-                    <button
-                      type="button"
-                      className="text-xs text-brand-600 font-semibold mt-2"
-                      onClick={() => setUseDefaultSteps(!useDefaultSteps)}
-                    >
-                      {useDefaultSteps ? "Start with empty steps instead" : "Use predefined steps"}
-                    </button>
                   </div>
                 </div>
               </div>

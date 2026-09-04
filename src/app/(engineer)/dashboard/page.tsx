@@ -13,9 +13,12 @@ const ACTIVE_STATUSES = ["ACTIVE", "ON_HOLD"];
 
 async function getProjects(userId: string) {
   const projects = await prisma.project.findMany({
-    where: { engineerId: userId, status: { not: "ARCHIVED" } },
+    where: {
+      status: { not: "ARCHIVED" },
+      OR: [{ engineerId: userId }, { members: { some: { userId } } }],
+    },
     include: {
-      steps: { select: { status: true } },
+      folders: { select: { progressPercent: true } },
       _count: { select: { updates: true } },
     },
     orderBy: { updatedAt: "desc" },

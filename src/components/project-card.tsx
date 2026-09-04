@@ -16,7 +16,7 @@ type Project = {
   status: string;
   category: string;
   updatedAt: Date;
-  steps: { status: string }[];
+  folders: { progressPercent: number }[];
   _count: { updates: number };
 };
 
@@ -53,9 +53,11 @@ export function ProjectCard({ project: initial }: { project: Project }) {
   const [status, setStatus] = useState(initial.status);
   const [saving, setSaving] = useState(false);
 
-  const totalSteps = initial.steps.length;
-  const completedSteps = initial.steps.filter((s) => s.status === "COMPLETED").length;
-  const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+  const totalFolders = initial.folders.length;
+  const progress =
+    totalFolders > 0
+      ? Math.round(initial.folders.reduce((sum, f) => sum + f.progressPercent, 0) / totalFolders)
+      : 0;
 
   async function handleStatusChange(next: ProjectStatus) {
     if (next === status) return;
@@ -107,10 +109,10 @@ export function ProjectCard({ project: initial }: { project: Project }) {
       <h3 className="font-bold text-gray-900 text-base mt-2">{initial.name}</h3>
       <p className="text-sm text-gray-500">Client: {initial.clientName}</p>
 
-      {totalSteps > 0 && (
+      {totalFolders > 0 && (
         <div className="mt-3">
           <div className="flex justify-between text-xs text-gray-400 mb-1">
-            <span>{completedSteps}/{totalSteps} phases</span>
+            <span>{totalFolders} folder{totalFolders > 1 ? "s" : ""}</span>
             <span>{progress}%</span>
           </div>
           <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">

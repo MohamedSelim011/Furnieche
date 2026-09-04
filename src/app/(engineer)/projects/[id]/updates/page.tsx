@@ -7,16 +7,16 @@ import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 import { formatRelativeTime } from "@/lib/utils";
 
-async function getProjectUpdates(id: string, userId: string, stepId?: string) {
+async function getProjectUpdates(id: string, userId: string, folderId?: string) {
   return prisma.project.findFirst({
-    where: { id, engineerId: userId },
+    where: { id, OR: [{ engineerId: userId }, { members: { some: { userId } } }] },
     select: {
       id: true,
       name: true,
       updates: {
         where: {
           isPublished: true,
-          ...(stepId ? { stepId } : {}),
+          ...(folderId ? { folderId } : {}),
         },
         include: { media: { take: 1 }, comments: { select: { id: true } } },
         orderBy: { createdAt: "desc" },
@@ -25,9 +25,9 @@ async function getProjectUpdates(id: string, userId: string, stepId?: string) {
   });
 }
 
-async function getStep(stepId: string, projectId: string) {
-  return prisma.projectStep.findFirst({
-    where: { id: stepId, projectId },
+async function getFolder(folderId: string, projectId: string) {
+  return prisma.projectFolder.findFirst({
+    where: { id: folderId, projectId },
     select: { id: true, name: true, order: true },
   });
 }
@@ -37,11 +37,11 @@ export default async function UpdatesListPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ stepId?: string }>;
+  searchParams?: Promise<{ folderId?: string }>;
 }) {
   const { id } = await params;
   const resolvedSearch = await searchParams;
-  const stepId = resolvedSearch?.stepId;
+  const folderId = resolvedSearch?.folderId;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -49,15 +49,15 @@ export default async function UpdatesListPage({
 
   await syncUser(user);
 
-  const [project, step] = await Promise.all([
-    getProjectUpdates(id, user.id, stepId),
-    stepId ? getStep(stepId, id) : Promise.resolve(null),
+  const [project, folder] = await Promise.all([
+    getProjectUpdates(id, user.id, folderId),
+    folderId ? getFolder(folderId, id) : Promise.resolve(null),
   ]);
 
   if (!project) notFound();
 
-  const addUpdateHref = stepId
-    ? `/projects/${id}/update/new?stepId=${stepId}`
+  const addUpdateHref = folderId
+    ? `/projects/${id}/update/new?folderId=${folderId}`
     : `/projects/${id}/update/new`;
 
   return (
@@ -70,7 +70,7 @@ export default async function UpdatesListPage({
           </Link>
           <div>
             <h1 className="text-lg font-bold text-gray-900">
-              {step ? `Phase ${step.order} Updates` : "All Updates"}
+              {folder ? `${folder.name} Updates` : "All Updates"}
             </h1>
             <p className="text-xs text-gray-400">{project.name}</p>
           </div>
@@ -83,12 +83,12 @@ export default async function UpdatesListPage({
         </Link>
       </div>
 
-      {/* Phase Filter Badge */}
-      {step && (
+      {/* Folder Filter Badge */}
+      {folder && (
         <div className="px-4 mb-3 flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-brand-50 text-brand-700 text-xs font-semibold px-3 py-1.5 rounded-full">
             <Layers size={12} />
-            {step.name}
+            {folder.name}
           </div>
           <Link href={`/projects/${id}/updates`} className="text-xs text-gray-400 underline">
             View all
@@ -102,7 +102,7 @@ export default async function UpdatesListPage({
           <Link href={addUpdateHref}>
             <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-6 text-center">
               <p className="text-sm font-semibold text-gray-500">
-                {step ? `No updates for this phase yet` : "No updates yet"}
+                {folder ? `No updates for this folder yet` : "No updates yet"}
               </p>
               <p className="text-xs text-gray-400 mt-1">Tap to post the first update</p>
             </div>

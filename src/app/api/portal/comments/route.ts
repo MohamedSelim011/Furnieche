@@ -5,8 +5,18 @@ import { CLIENT_COOKIE_NAME } from "@/lib/constants";
 import { sendNewCommentEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
+  const body = await req.json();
+  const { updateId, body: commentBody, clientName, clientEmail, token: bodyToken } = body;
+
+  if (!updateId || !commentBody) {
+    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  // Prefer the httpOnly session cookie, but fall back to the token the page
+  // already knows (belt-and-suspenders in case the cookie was never set or
+  // got cleared by the client's browser — see #comment-bug fix).
   const cookieStore = await cookies();
-  const token = cookieStore.get(CLIENT_COOKIE_NAME)?.value;
+  const token = cookieStore.get(CLIENT_COOKIE_NAME)?.value ?? bodyToken;
 
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -28,11 +38,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
-  const body = await req.json();
-  const { updateId, body: commentBody, clientName, clientEmail } = body;
-
-  if (!updateId || !commentBody) {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  // Make sure the update actually belongs to this portal's project
+  const update = await prisma.projectUpdate.findFirst({
+    where: { id: updateId, projectId: accessToken.projectId },
+    select: { id: true },
+  });
+  if (!update) {
+    return NextResponse.json({ error: "Update not found" }, { status: 404 });
   }
 
   const comment = await prisma.comment.create({

@@ -18,7 +18,10 @@ async function fetchAccessToken(token: string) {
     include: {
       project: {
         include: {
-          steps: { orderBy: { order: "asc" } },
+          folders: {
+            orderBy: { order: "asc" },
+            include: { files: { orderBy: { createdAt: "asc" } } },
+          },
           updates: {
             where: { isPublished: true },
             include: {
@@ -73,9 +76,11 @@ export default async function PortalPage({
   if (result.status === "expired") return <ExpiredLinkState />;
 
   const { project } = result.data;
-  const totalSteps = project.steps.length;
-  const completedSteps = project.steps.filter((s) => s.status === "COMPLETED").length;
-  const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+  const totalFolders = project.folders.length;
+  const progress =
+    totalFolders > 0
+      ? Math.round(project.folders.reduce((sum, f) => sum + f.progressPercent, 0) / totalFolders)
+      : 0;
   const statusBadge = getStatusBadge(project.status);
 
   return (
@@ -209,7 +214,7 @@ export default async function PortalPage({
                     )}
 
                     {/* Comment Input */}
-                    <CommentForm updateId={update.id} clientName={project.clientName} clientEmail={project.clientEmail} />
+                    <CommentForm updateId={update.id} token={token} clientName={project.clientName} clientEmail={project.clientEmail} />
                   </div>
                 </div>
               </div>
@@ -245,7 +250,7 @@ export default async function PortalPage({
         )}
 
         {/* Test 2: expandable project scope */}
-        <ScopeSection steps={project.steps} />
+        <ScopeSection folders={project.folders} />
 
         <p className="text-[10px] text-gray-300 mt-3 uppercase tracking-widest">Secure Client Portal v2.4.0</p>
       </div>

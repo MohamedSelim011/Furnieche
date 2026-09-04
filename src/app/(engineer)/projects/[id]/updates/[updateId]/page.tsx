@@ -13,12 +13,12 @@ async function getUpdate(updateId: string, projectId: string, userId: string) {
     where: {
       id: updateId,
       projectId,
-      project: { engineerId: userId },
+      project: { OR: [{ engineerId: userId }, { members: { some: { userId } } }] },
     },
     include: {
       media: true,
       comments: { orderBy: { createdAt: "asc" } },
-      step: { select: { name: true } },
+      folder: { select: { name: true } },
     },
   });
 }
@@ -68,9 +68,9 @@ export default async function UpdateDetailPage({
             {update.location}
           </span>
         )}
-        {update.step && (
+        {update.folder && (
           <span className="bg-brand-50 text-brand-600 px-2 py-0.5 rounded-full font-medium">
-            {update.step.name}
+            {update.folder.name}
           </span>
         )}
       </div>

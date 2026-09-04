@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 import { sendClientPortalEmail } from "@/lib/email";
 import { getPlan } from "@/lib/plans";
+import { DEFAULT_FOLDERS } from "@/lib/constants";
 
 export async function GET() {
   const supabase = await createClient();
@@ -12,10 +13,16 @@ export async function GET() {
 
   await syncUser(user);
 
+  // Projects the user owns, plus projects a teammate has shared with them.
   const projects = await prisma.project.findMany({
-    where: { engineerId: user.id },
+    where: {
+      OR: [
+        { engineerId: user.id },
+        { members: { some: { userId: user.id } } },
+      ],
+    },
     include: {
-      steps: { select: { status: true } },
+      folders: { select: { progressPercent: true } },
       _count: { select: { updates: true } },
     },
     orderBy: { updatedAt: "desc" },
@@ -49,7 +56,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, category, clientName, clientEmail, location, startDate, estimatedEndDate, steps, budget } = body;
+  const { name, category, clientName, clientEmail, location, startDate, estimatedEndDate, budget } = body;
 
   if (!name || !clientName || !clientEmail) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -66,15 +73,17 @@ export async function POST(req: NextRequest) {
       estimatedEndDate: estimatedEndDate ? new Date(estimatedEndDate) : null,
       budget: budget ?? null,
       engineerId: user.id,
-      steps: steps?.length
-        ? {
-            create: steps.map((s: { name: string; description?: string; order: number }) => ({
-              name: s.name,
-              description: s.description ?? null,
-              order: s.order,
-            })),
-          }
-        : undefined,
+      companyId: dbUser?.company?.id ?? null,
+      // Every project starts with the same three folders — Contract, Design,
+      // Site. The engineer can rename/delete/add to these afterward.
+      folders: {
+        create: DEFAULT_FOLDERS.map((f) => ({
+          name: f.name,
+          description: f.description,
+          order: f.order,
+          isDefault: true,
+        })),
+      },
       accessTokens: {
         create: [{ isActive: true }],
       },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
+import { getProjectAccess } from "@/lib/authz";
 
 // GET /api/projects/[id]/payments — engineer or client via token
 export async function GET(
@@ -24,12 +25,16 @@ export async function GET(
     }
     project = accessToken.project;
   } else {
-    // Engineer access
+    // Engineer/teammate access
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     await syncUser(user);
-    project = await prisma.project.findFirst({ where: { id, engineerId: user.id } });
+    const access = await getProjectAccess(user.id, id);
+    if (!access.role || !access.canViewBudget) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    project = await prisma.project.findFirst({ where: { id } });
     if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -89,13 +94,17 @@ export async function POST(
     return NextResponse.json(payment, { status: 201 });
   }
 
-  // Engineer payment request
+  // Engineer/teammate payment request
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   await syncUser(user);
 
-  const project = await prisma.project.findFirst({ where: { id, engineerId: user.id } });
+  const access = await getProjectAccess(user.id, id);
+  if (!access.role || !access.canViewBudget) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  const project = await prisma.project.findFirst({ where: { id } });
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const paymentType = type === "DEPOSIT" ? "DEPOSIT" : "REQUEST";

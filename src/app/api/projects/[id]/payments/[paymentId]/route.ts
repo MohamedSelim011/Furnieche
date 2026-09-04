@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
+import { getProjectAccess } from "@/lib/authz";
 
 // PATCH /api/projects/[id]/payments/[paymentId] — engineer verifies or rejects a deposit
 export async function PATCH(
@@ -15,8 +16,10 @@ export async function PATCH(
 
   await syncUser(user);
 
-  const project = await prisma.project.findFirst({ where: { id, engineerId: user.id } });
-  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const access = await getProjectAccess(user.id, id);
+  if (!access.role || !access.canViewBudget) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const { status, amount, description } = await req.json();
 
@@ -44,8 +47,10 @@ export async function DELETE(
 
   await syncUser(user);
 
-  const project = await prisma.project.findFirst({ where: { id, engineerId: user.id } });
-  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const access = await getProjectAccess(user.id, id);
+  if (!access.role || !access.canViewBudget) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   await prisma.payment.delete({ where: { id: paymentId, projectId: id } });
   return NextResponse.json({ ok: true });

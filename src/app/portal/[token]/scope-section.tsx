@@ -1,24 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, CheckCircle2, Circle, MinusCircle, Clock } from "lucide-react";
+import { ChevronDown, ChevronUp, FolderOpen, FileText, Image as ImageIcon, Video } from "lucide-react";
 
-type Step = {
+type File = {
   id: string;
   name: string;
-  status: string;
-  order: number;
+  url: string;
+  type: "IMAGE" | "VIDEO" | "DOCUMENT";
+  progressPercent: number;
 };
 
-function StepIcon({ status }: { status: string }) {
-  if (status === "COMPLETED")  return <CheckCircle2 size={15} className="text-green-500 shrink-0" />;
-  if (status === "IN_PROGRESS") return <Clock size={15} className="text-brand-500 shrink-0" />;
-  if (status === "SKIPPED")    return <MinusCircle size={15} className="text-amber-400 shrink-0" />;
-  return <Circle size={15} className="text-gray-300 shrink-0" />;
+type Folder = {
+  id: string;
+  name: string;
+  progressPercent: number;
+  files: File[];
+};
+
+function fileIcon(type: File["type"]) {
+  if (type === "IMAGE") return <ImageIcon size={13} className="text-gray-400 shrink-0" />;
+  if (type === "VIDEO") return <Video size={13} className="text-gray-400 shrink-0" />;
+  return <FileText size={13} className="text-gray-400 shrink-0" />;
 }
 
-export function ScopeSection({ steps }: { steps: Step[] }) {
+export function ScopeSection({ folders }: { folders: Folder[] }) {
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   return (
     <div className="mt-4">
@@ -27,37 +35,56 @@ export function ScopeSection({ steps }: { steps: Step[] }) {
         className="w-full bg-gray-900 text-white rounded-2xl py-3 text-sm font-semibold flex items-center justify-center gap-2"
       >
         {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        View Project Scope
+        View Project Folders
       </button>
 
       {open && (
         <div className="mt-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-left">
-          {steps.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-2">No phases defined for this project.</p>
+          {folders.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-2">No folders defined for this project.</p>
           ) : (
-            <ol className="space-y-3">
-              {steps.map((step, i) => (
-                <li key={step.id} className="flex items-center gap-3">
-                  <StepIcon status={step.status} />
-                  <span
-                    className={`text-sm flex-1 ${
-                      step.status === "COMPLETED"
-                        ? "text-gray-400 line-through"
-                        : step.status === "IN_PROGRESS"
-                        ? "text-brand-700 font-semibold"
-                        : "text-gray-700"
-                    }`}
+            <div className="space-y-3">
+              {folders.map((folder) => (
+                <div key={folder.id}>
+                  <button
+                    onClick={() => setExpanded(expanded === folder.id ? null : folder.id)}
+                    className="w-full flex items-center gap-2"
                   >
-                    {i + 1}. {step.name}
-                  </span>
-                  {step.status === "IN_PROGRESS" && (
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-brand-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
-                      Active
-                    </span>
+                    <FolderOpen size={15} className="text-brand-600 shrink-0" />
+                    <span className="text-sm font-semibold text-gray-800 flex-1 text-left">{folder.name}</span>
+                    <span className="text-xs font-semibold text-brand-600">{folder.progressPercent}%</span>
+                  </button>
+                  <div className="h-1 bg-gray-100 rounded-full mt-1.5 mb-2 overflow-hidden">
+                    <div
+                      className="h-full bg-brand-600 rounded-full transition-all"
+                      style={{ width: `${folder.progressPercent}%` }}
+                    />
+                  </div>
+
+                  {expanded === folder.id && (
+                    <div className="ml-5 space-y-1.5">
+                      {folder.files.length === 0 ? (
+                        <p className="text-xs text-gray-400">No files yet</p>
+                      ) : (
+                        folder.files.map((file) => (
+                          <a
+                            key={file.id}
+                            href={file.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-2 text-xs text-gray-600 hover:underline"
+                          >
+                            {fileIcon(file.type)}
+                            <span className="flex-1 truncate">{file.name}</span>
+                            <span className="text-gray-400 shrink-0">{file.progressPercent}%</span>
+                          </a>
+                        ))
+                      )}
+                    </div>
                   )}
-                </li>
+                </div>
               ))}
-            </ol>
+            </div>
           )}
         </div>
       )}

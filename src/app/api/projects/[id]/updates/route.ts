@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 import { sendUpdatePublishedEmail } from "@/lib/email";
+import { getProjectAccess, canEdit } from "@/lib/authz";
 
 export async function GET(
   _req: NextRequest,
@@ -12,6 +13,11 @@ export async function GET(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  await syncUser(user);
+
+  const access = await getProjectAccess(user.id, id);
+  if (!access.role) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const updates = await prisma.projectUpdate.findMany({
     where: { projectId: id },
@@ -33,13 +39,16 @@ export async function POST(
 
   await syncUser(user);
 
+  const access = await getProjectAccess(user.id, id);
+  if (!canEdit(access)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const body = await req.json();
-  const { title, description, category, location, media, isPublished, stepId } = body;
+  const { title, description, category, location, media, isPublished, folderId } = body;
 
   const update = await prisma.projectUpdate.create({
     data: {
       projectId: id,
-      stepId: stepId ?? null,
+      folderId: folderId ?? null,
       title,
       description: description ?? null,
       category: category ?? null,
@@ -59,21 +68,13 @@ export async function POST(
     include: { media: true },
   });
 
-  // Auto-start the linked step if it is still PENDING (#03)
-  if (stepId) {
-    await prisma.projectStep.updateMany({
-      where: { id: stepId, projectId: id, status: "PENDING" },
-      data: { status: "IN_PROGRESS", startDate: new Date() },
-    });
-  }
-
   // Audit log
   await prisma.auditLog.create({
     data: {
       projectId: id,
       userId: user.id,
       action: "update.uploaded",
-      metadata: { title, mediaCount: media?.length ?? 0, stepId: stepId ?? null },
+      metadata: { title, mediaCount: media?.length ?? 0, folderId: folderId ?? null },
     },
   });
 

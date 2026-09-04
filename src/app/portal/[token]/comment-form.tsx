@@ -6,10 +6,12 @@ import { toast } from "sonner";
 
 export function CommentForm({
   updateId,
+  token,
   clientName,
   clientEmail,
 }: {
   updateId: string;
+  token: string;
   clientName: string;
   clientEmail: string;
 }) {
@@ -24,7 +26,7 @@ export function CommentForm({
       const res = await fetch(`/api/portal/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ updateId, body: body.trim(), clientName, clientEmail }),
+        body: JSON.stringify({ updateId, token, body: body.trim(), clientName, clientEmail }),
       });
       if (!res.ok) throw new Error();
       setBody("");
