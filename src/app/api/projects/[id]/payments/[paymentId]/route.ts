@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
-import { getProjectAccess } from "@/lib/authz";
+import { getProjectAccess, canEdit } from "@/lib/authz";
 
 // PATCH /api/projects/[id]/payments/[paymentId] — engineer verifies or rejects a deposit
 export async function PATCH(
@@ -20,19 +20,33 @@ export async function PATCH(
   if (!access.role || !access.canViewBudget) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  if (!canEdit(access)) {
+    return NextResponse.json({ error: "You don't have permission to manage payments" }, { status: 403 });
+  }
 
   const { status, amount, description } = await req.json();
 
-  const updated = await prisma.payment.update({
-    where: { id: paymentId, projectId: id },
-    data: {
-      ...(status && { status }),
-      ...(amount !== undefined && { amount: parseFloat(amount) }),
-      ...(description !== undefined && { description }),
-    },
-  });
+  let parsedAmount: number | undefined;
+  if (amount !== undefined) {
+    parsedAmount = parseFloat(amount);
+    if (Number.isNaN(parsedAmount)) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+    }
+  }
 
-  return NextResponse.json(updated);
+  try {
+    const updated = await prisma.payment.update({
+      where: { id: paymentId, projectId: id },
+      data: {
+        ...(status && { status }),
+        ...(parsedAmount !== undefined && { amount: parsedAmount }),
+        ...(description !== undefined && { description }),
+      },
+    });
+    return NextResponse.json(updated);
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }
 
 // DELETE /api/projects/[id]/payments/[paymentId] — engineer deletes a payment
@@ -51,7 +65,14 @@ export async function DELETE(
   if (!access.role || !access.canViewBudget) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  if (!canEdit(access)) {
+    return NextResponse.json({ error: "You don't have permission to manage payments" }, { status: 403 });
+  }
 
-  await prisma.payment.delete({ where: { id: paymentId, projectId: id } });
-  return NextResponse.json({ ok: true });
+  try {
+    await prisma.payment.delete({ where: { id: paymentId, projectId: id } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }

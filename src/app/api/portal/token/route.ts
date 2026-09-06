@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isPortalTokenValid } from "@/lib/authz";
 
 // GET /api/portal/token?token=xxx — resolve token to projectId
 export async function GET(req: NextRequest) {
@@ -8,10 +9,10 @@ export async function GET(req: NextRequest) {
 
   const accessToken = await prisma.accessToken.findUnique({
     where: { token },
-    select: { projectId: true, isActive: true },
+    select: { projectId: true, isActive: true, expiresAt: true },
   });
 
-  if (!accessToken || !accessToken.isActive) {
+  if (!isPortalTokenValid(accessToken)) {
     return NextResponse.json({ error: "Invalid token" }, { status: 403 });
   }
 

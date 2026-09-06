@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
@@ -95,14 +95,16 @@ export async function POST(
       const portalUrl = `${appUrl}/portal/${project.accessTokens[0].token}`;
       const engineerName = user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Your engineer";
 
-      sendUpdatePublishedEmail({
-        clientEmail: project.clientEmail,
-        clientName: project.clientName,
-        projectName: project.name,
-        engineerName,
-        updateTitle: title,
-        portalUrl,
-      }).catch((err) => console.error("[EMAIL ERROR] sendUpdatePublishedEmail failed:", JSON.stringify(err, null, 2)));
+      after(() =>
+        sendUpdatePublishedEmail({
+          clientEmail: project.clientEmail,
+          clientName: project.clientName,
+          projectName: project.name,
+          engineerName,
+          updateTitle: title,
+          portalUrl,
+        }).catch((err) => console.error("[EMAIL ERROR] sendUpdatePublishedEmail failed:", JSON.stringify(err, null, 2)))
+      );
     }
   }
 

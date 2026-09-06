@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { isPortalTokenValid } from "@/lib/authz";
 import { PortalNav } from "../portal-nav";
 import { DepositForm } from "./deposit-form";
 import { CheckCircle2, XCircle, Clock, DollarSign, Upload, Wallet } from "lucide-react";
@@ -20,7 +21,7 @@ async function getWalletData(token: string) {
     },
   });
 
-  if (!accessToken || !accessToken.isActive) return null;
+  if (!isPortalTokenValid(accessToken)) return null;
 
   const { project } = accessToken;
   const payments = project.payments;

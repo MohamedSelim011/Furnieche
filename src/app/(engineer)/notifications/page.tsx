@@ -14,7 +14,7 @@ async function getNotifications(userId: string) {
     where: {
       authorId: null,
       createdAt: { gte: thirtyDaysAgo },
-      update: { project: { engineerId: userId } },
+      update: { project: { OR: [{ engineerId: userId }, { members: { some: { userId } } }] } },
     },
     include: {
       update: {

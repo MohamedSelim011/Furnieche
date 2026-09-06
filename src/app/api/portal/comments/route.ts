@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { CLIENT_COOKIE_NAME } from "@/lib/constants";
 import { sendNewCommentEmail } from "@/lib/email";
+import { isPortalTokenValid } from "@/lib/authz";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   // Verify the token is still valid
   const accessToken = await prisma.accessToken.findUnique({
-    where: { token, isActive: true },
+    where: { token },
     include: {
       project: {
         include: {
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  if (!accessToken) {
+  if (!isPortalTokenValid(accessToken)) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
@@ -65,20 +66,28 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Notify engineer via email (non-blocking)
+  // Notify engineer via email. Scheduled with after() so the serverless
+  // function isn't frozen/torn down before the send actually completes —
+  // a bare fire-and-forget promise here would race the response teardown
+  // and intermittently drop the email (see #email-reliability).
   if (process.env.RESEND_API_KEY && accessToken.project.engineer.email) {
     const engineerName =
       accessToken.project.engineer.name ??
       accessToken.project.engineer.email.split("@")[0];
+    const engineerEmail = accessToken.project.engineer.email;
+    const projectName = accessToken.project.name;
+    const projectId = accessToken.projectId;
 
-    sendNewCommentEmail({
-      engineerEmail: accessToken.project.engineer.email,
-      engineerName,
-      clientName: clientName ?? "Your client",
-      projectName: accessToken.project.name,
-      projectId: accessToken.projectId,
-      commentBody,
-    }).catch((err) => console.error("Failed to send comment email:", err));
+    after(() =>
+      sendNewCommentEmail({
+        engineerEmail,
+        engineerName,
+        clientName: clientName ?? "Your client",
+        projectName,
+        projectId,
+        commentBody,
+      }).catch((err) => console.error("Failed to send comment email:", err))
+    );
   }
 
   return NextResponse.json(comment, { status: 201 });

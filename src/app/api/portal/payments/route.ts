@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isPortalTokenValid } from "@/lib/authz";
 
 // GET /api/portal/payments?token=xxx
 export async function GET(req: NextRequest) {
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
     include: { project: true },
   });
 
-  if (!accessToken || !accessToken.isActive) {
+  if (!isPortalTokenValid(accessToken)) {
     return NextResponse.json({ error: "Invalid token" }, { status: 403 });
   }
 
@@ -50,14 +51,15 @@ export async function POST(req: NextRequest) {
     where: { token },
   });
 
-  if (!accessToken || !accessToken.isActive) {
+  if (!isPortalTokenValid(accessToken)) {
     return NextResponse.json({ error: "Invalid token" }, { status: 403 });
   }
 
   const body = await req.json();
   const { amount, description, screenshotUrl } = body;
 
-  if (!amount || parseFloat(amount) <= 0) {
+  const parsedAmount = parseFloat(amount);
+  if (!amount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
   }
 
@@ -66,7 +68,7 @@ export async function POST(req: NextRequest) {
       projectId: accessToken.projectId,
       type: "DEPOSIT",
       status: "PENDING",
-      amount: parseFloat(amount),
+      amount: parsedAmount,
       description: description || null,
       screenshotUrl: screenshotUrl || null,
     },

@@ -19,15 +19,18 @@ export async function PATCH(
 
   const { role, canViewBudget } = await req.json();
 
-  const member = await prisma.projectMember.update({
-    where: { id: memberId, projectId: id },
-    data: {
-      ...(role && { role: role === "EDITOR" ? "EDITOR" : "VIEWER" }),
-      ...(canViewBudget !== undefined && { canViewBudget: Boolean(canViewBudget) }),
-    },
-  });
-
-  return NextResponse.json(member);
+  try {
+    const member = await prisma.projectMember.update({
+      where: { id: memberId, projectId: id },
+      data: {
+        ...(role && { role: role === "EDITOR" ? "EDITOR" : "VIEWER" }),
+        ...(canViewBudget !== undefined && { canViewBudget: Boolean(canViewBudget) }),
+      },
+    });
+    return NextResponse.json(member);
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }
 
 export async function DELETE(
@@ -43,6 +46,10 @@ export async function DELETE(
   const access = await getProjectAccess(user.id, id);
   if (access.role !== "OWNER") return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await prisma.projectMember.delete({ where: { id: memberId, projectId: id } });
-  return new NextResponse(null, { status: 204 });
+  try {
+    await prisma.projectMember.delete({ where: { id: memberId, projectId: id } });
+    return new NextResponse(null, { status: 204 });
+  } catch {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 }

@@ -19,6 +19,12 @@ export async function GET(
   const access = await getProjectAccess(user.id, id);
   if (!access.role) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Confirm folderId actually belongs to this project — otherwise a valid
+  // access check on `id` would let someone read another project's files by
+  // guessing/enumerating a folderId.
+  const folder = await prisma.projectFolder.findFirst({ where: { id: folderId, projectId: id } });
+  if (!folder) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const files = await prisma.projectFile.findMany({
     where: { folderId },
     orderBy: { createdAt: "asc" },
@@ -43,6 +49,9 @@ export async function POST(
 
   const access = await getProjectAccess(user.id, id);
   if (!canEdit(access)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const folder = await prisma.projectFolder.findFirst({ where: { id: folderId, projectId: id } });
+  if (!folder) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
   const { name, url, type, sizeBytes, progressPercent } = body;

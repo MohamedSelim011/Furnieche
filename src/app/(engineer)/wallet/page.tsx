@@ -8,7 +8,12 @@ import { syncUser } from "@/lib/sync-user";
 
 async function getWalletOverview(userId: string) {
   const projects = await prisma.project.findMany({
-    where: { engineerId: userId },
+    where: {
+      OR: [
+        { engineerId: userId },
+        { members: { some: { userId, canViewBudget: true } } },
+      ],
+    },
     include: {
       payments: true,
     },

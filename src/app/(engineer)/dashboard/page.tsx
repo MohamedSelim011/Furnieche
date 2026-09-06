@@ -53,7 +53,7 @@ async function getDashboardStats(userId: string, lastReadAt: Date | null) {
       where: {
         authorId: null,
         createdAt: { gte: commentCutoff },
-        update: { project: { engineerId: userId } },
+        update: { project: { OR: [{ engineerId: userId }, { members: { some: { userId } } }] } },
       },
     }),
   ]);

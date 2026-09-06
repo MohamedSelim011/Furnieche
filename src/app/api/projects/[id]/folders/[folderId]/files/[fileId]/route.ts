@@ -19,6 +19,9 @@ export async function PATCH(
   const access = await getProjectAccess(user.id, id);
   if (!canEdit(access)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const folder = await prisma.projectFolder.findFirst({ where: { id: folderId, projectId: id } });
+  if (!folder) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const body = await req.json();
   const { name, url, progressPercent } = body;
 
@@ -53,6 +56,9 @@ export async function DELETE(
 
   const access = await getProjectAccess(user.id, id);
   if (!canEdit(access)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const folder = await prisma.projectFolder.findFirst({ where: { id: folderId, projectId: id } });
+  if (!folder) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   await prisma.projectFile.delete({ where: { id: fileId, folderId } });
 

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
@@ -58,12 +58,14 @@ export async function POST(req: NextRequest) {
 
   if (process.env.RESEND_API_KEY) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    sendCompanyInviteEmail({
-      inviteEmail: invite.email,
-      inviterName: dbUser.name ?? dbUser.email.split("@")[0],
-      companyName: dbUser.company?.name ?? "your team",
-      inviteUrl: `${appUrl}/invite/${invite.token}`,
-    }).catch((err) => console.error("Failed to send invite email:", err));
+    after(() =>
+      sendCompanyInviteEmail({
+        inviteEmail: invite.email,
+        inviterName: dbUser.name ?? dbUser.email.split("@")[0],
+        companyName: dbUser.company?.name ?? "your team",
+        inviteUrl: `${appUrl}/invite/${invite.token}`,
+      }).catch((err) => console.error("Failed to send invite email:", err))
+    );
   }
 
   return NextResponse.json(invite, { status: 201 });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
-import { getProjectAccess } from "@/lib/authz";
+import { getProjectAccess, canEdit, isPortalTokenValid } from "@/lib/authz";
 
 // GET /api/projects/[id]/payments — engineer or client via token
 export async function GET(
@@ -20,7 +20,7 @@ export async function GET(
       where: { token: tokenParam },
       include: { project: true },
     });
-    if (!accessToken || !accessToken.isActive || accessToken.projectId !== id) {
+    if (!isPortalTokenValid(accessToken) || accessToken.projectId !== id) {
       return NextResponse.json({ error: "Invalid token" }, { status: 403 });
     }
     project = accessToken.project;
@@ -69,7 +69,10 @@ export async function POST(
   const body = await req.json();
   const { amount, description, type, token } = body;
 
-  if (!amount || amount <= 0) return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+  const parsedAmount = parseFloat(amount);
+  if (!amount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+    return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+  }
 
   // Client deposit via portal token
   if (type === "DEPOSIT" && token) {
@@ -77,7 +80,7 @@ export async function POST(
       where: { token },
       include: { project: true },
     });
-    if (!accessToken || !accessToken.isActive || accessToken.projectId !== id) {
+    if (!isPortalTokenValid(accessToken) || accessToken.projectId !== id) {
       return NextResponse.json({ error: "Invalid token" }, { status: 403 });
     }
 
@@ -86,7 +89,7 @@ export async function POST(
         projectId: id,
         type: "DEPOSIT",
         status: "PENDING",
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         description: description || null,
         screenshotUrl: body.screenshotUrl || null,
       },
@@ -104,6 +107,9 @@ export async function POST(
   if (!access.role || !access.canViewBudget) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  if (!canEdit(access)) {
+    return NextResponse.json({ error: "You don't have permission to request payments" }, { status: 403 });
+  }
   const project = await prisma.project.findFirst({ where: { id } });
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -113,7 +119,7 @@ export async function POST(
       projectId: id,
       type: paymentType,
       status: paymentType === "DEPOSIT" ? "VERIFIED" : "PENDING",
-      amount: parseFloat(amount),
+      amount: parsedAmount,
       description: description || null,
       screenshotUrl: body.screenshotUrl || null,
     },

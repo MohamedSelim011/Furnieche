@@ -51,10 +51,15 @@ export async function PATCH(req: NextRequest) {
       data: companyData,
     });
   } else {
-    const company = await prisma.company.create({ data: companyData });
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { companyId: company.id },
+    // Creating a brand-new company: the creator becomes its ADMIN so they
+    // can actually invite teammates afterward — otherwise nobody could ever
+    // become ADMIN and the team feature would be permanently locked.
+    await prisma.$transaction(async (tx) => {
+      const company = await tx.company.create({ data: companyData });
+      await tx.user.update({
+        where: { id: user.id },
+        data: { companyId: company.id, role: "ADMIN" },
+      });
     });
   }
 

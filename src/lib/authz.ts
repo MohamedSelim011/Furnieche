@@ -38,3 +38,18 @@ export async function getProjectAccess(
 export function canEdit(access: ProjectAccess): boolean {
   return access.role === "OWNER" || access.role === "EDITOR";
 }
+
+/**
+ * A portal AccessToken is valid only if it's active AND not past its
+ * expiresAt. Every route that accepts a client portal token should check
+ * this — checking `isActive` alone (as several routes used to) leaves an
+ * expired link fully functional for reading/writing payments and comments,
+ * even though the portal page itself correctly shows "This link has expired".
+ */
+export function isPortalTokenValid<T extends { isActive: boolean; expiresAt: Date | null }>(
+  accessToken: T | null
+): accessToken is T {
+  if (!accessToken || !accessToken.isActive) return false;
+  if (accessToken.expiresAt && accessToken.expiresAt < new Date()) return false;
+  return true;
+}

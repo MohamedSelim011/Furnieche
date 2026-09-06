@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
@@ -88,26 +88,27 @@ export async function POST(req: NextRequest) {
         create: [{ isActive: true }],
       },
     },
+    include: { accessTokens: true },
   });
 
-  // Fetch the generated access token
-  const accessToken = await prisma.accessToken.findFirst({
-    where: { projectId: project.id, isActive: true },
-  });
+  const accessToken = project.accessTokens[0];
 
-  // Send client portal email (non-blocking — don't fail project creation if email fails)
+  // Send client portal email — scheduled with after() so it isn't cut off
+  // by the function freezing right after we return the response below.
   if (accessToken && process.env.RESEND_API_KEY) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const portalUrl = `${appUrl}/portal/${accessToken.token}`;
     const engineerName = user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Your engineer";
 
-    sendClientPortalEmail({
-      clientName,
-      clientEmail,
-      projectName: name,
-      engineerName,
-      portalUrl,
-    }).catch((err) => console.error("[EMAIL ERROR] sendClientPortalEmail failed:", JSON.stringify(err, null, 2)));
+    after(() =>
+      sendClientPortalEmail({
+        clientName,
+        clientEmail,
+        projectName: name,
+        engineerName,
+        portalUrl,
+      }).catch((err) => console.error("[EMAIL ERROR] sendClientPortalEmail failed:", JSON.stringify(err, null, 2)))
+    );
   }
 
   // Audit log

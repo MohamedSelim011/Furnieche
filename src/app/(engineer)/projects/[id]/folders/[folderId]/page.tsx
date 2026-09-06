@@ -64,8 +64,11 @@ export default function FolderDetailPage() {
     if (selected.length === 0) return;
     setUploading(true);
 
-    for (const file of selected) {
-      try {
+    // Upload files in parallel instead of one at a time — these are
+    // independent Storage uploads + API calls, so serializing them just
+    // adds up each file's latency instead of overlapping it.
+    const results = await Promise.allSettled(
+      selected.map(async (file) => {
         const ext = file.name.split(".").pop();
         const path = `projects/${id}/folders/${folderId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const { error } = await supabase.storage
@@ -86,16 +89,25 @@ export default function FolderDetailPage() {
           }),
         });
         if (!res.ok) throw new Error();
-        const created = await res.json();
-        setFiles((prev) => [...prev, created]);
-      } catch {
-        toast.error(`Failed to upload ${file.name}`);
+        return { file, created: await res.json() };
+      })
+    );
+
+    const created: ProjectFile[] = [];
+    let failedCount = 0;
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        created.push(result.value.created);
+      } else {
+        failedCount++;
       }
     }
+    if (created.length > 0) setFiles((prev) => [...prev, ...created]);
+    if (failedCount > 0) toast.error(`Failed to upload ${failedCount} file${failedCount > 1 ? "s" : ""}`);
+    if (created.length > 0) toast.success("File(s) added");
 
     setUploading(false);
     e.target.value = "";
-    toast.success("File(s) added");
   }
 
   async function updateProgress(fileId: string, progressPercent: number) {

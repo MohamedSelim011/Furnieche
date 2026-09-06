@@ -51,6 +51,14 @@ export async function POST(
     );
   }
 
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { companyId: true } });
+  if (dbUser?.companyId && dbUser.companyId !== invite.companyId) {
+    return NextResponse.json(
+      { error: "You already belong to a different company. Leave it before accepting this invite." },
+      { status: 409 }
+    );
+  }
+
   await prisma.$transaction([
     prisma.user.update({
       where: { id: user.id },
