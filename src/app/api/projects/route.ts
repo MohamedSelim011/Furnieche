@@ -84,14 +84,21 @@ export async function POST(req: NextRequest) {
           isDefault: true,
         })),
       },
+      // Two client links: the OWNER link sees everything including the
+      // wallet (this is what gets emailed to the client below); the
+      // VISITOR link sees everything except the wallet, for handing out
+      // to anyone else who shouldn't see financials.
       accessTokens: {
-        create: [{ isActive: true }],
+        create: [
+          { isActive: true, type: "OWNER" },
+          { isActive: true, type: "VISITOR" },
+        ],
       },
     },
     include: { accessTokens: true },
   });
 
-  const accessToken = project.accessTokens[0];
+  const accessToken = project.accessTokens.find((t) => t.type === "OWNER");
 
   // Send client portal email — scheduled with after() so it isn't cut off
   // by the function freezing right after we return the response below.

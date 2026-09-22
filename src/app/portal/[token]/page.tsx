@@ -19,8 +19,15 @@ async function fetchAccessToken(token: string) {
       project: {
         include: {
           folders: {
+            where: { parentId: null },
             orderBy: { order: "asc" },
-            include: { files: { orderBy: { createdAt: "asc" } } },
+            include: {
+              files: { orderBy: { createdAt: "asc" } },
+              children: {
+                orderBy: { order: "asc" },
+                include: { files: { orderBy: { createdAt: "asc" } } },
+              },
+            },
           },
           updates: {
             where: { isPublished: true },
@@ -85,7 +92,7 @@ export default async function PortalPage({
 
   return (
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto pb-24">
-      <PortalNav token={token} />
+      <PortalNav token={token} linkType={result.data.type} />
       {/* Header */}
       <div className="bg-white px-4 pt-10 pb-4 border-b border-gray-100">
         <div className="flex items-start justify-between">

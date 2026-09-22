@@ -4,7 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Clock, Wallet } from "lucide-react";
 
-export function PortalNav({ token }: { token: string }) {
+export function PortalNav({
+  token,
+  linkType,
+}: {
+  token: string;
+  /** VISITOR links hide the Wallet tab entirely — they never see financials. */
+  linkType: "OWNER" | "VISITOR";
+}) {
   const pathname = usePathname();
   const isWallet = pathname.endsWith("/wallet");
 
@@ -20,15 +27,17 @@ export function PortalNav({ token }: { token: string }) {
           <Clock size={22} strokeWidth={!isWallet ? 2.5 : 1.8} />
           <span className={`text-[10px] font-medium ${!isWallet ? "font-semibold" : ""}`}>Updates</span>
         </Link>
-        <Link
-          href={`/portal/${token}/wallet`}
-          className={`flex flex-col items-center gap-1 px-6 py-1 rounded-xl transition-colors min-w-[80px] ${
-            isWallet ? "text-brand-600" : "text-gray-400 hover:text-gray-600"
-          }`}
-        >
-          <Wallet size={22} strokeWidth={isWallet ? 2.5 : 1.8} />
-          <span className={`text-[10px] font-medium ${isWallet ? "font-semibold" : ""}`}>Wallet</span>
-        </Link>
+        {linkType === "OWNER" && (
+          <Link
+            href={`/portal/${token}/wallet`}
+            className={`flex flex-col items-center gap-1 px-6 py-1 rounded-xl transition-colors min-w-[80px] ${
+              isWallet ? "text-brand-600" : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <Wallet size={22} strokeWidth={isWallet ? 2.5 : 1.8} />
+            <span className={`text-[10px] font-medium ${isWallet ? "font-semibold" : ""}`}>Wallet</span>
+          </Link>
+        )}
       </div>
     </nav>
   );

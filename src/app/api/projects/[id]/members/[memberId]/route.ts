@@ -17,15 +17,45 @@ export async function PATCH(
   const access = await getProjectAccess(user.id, id);
   if (access.role !== "OWNER") return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const { role, canViewBudget } = await req.json();
+  const { role, canViewBudget, allFolders, folderIds } = await req.json();
+
+  // folderIds implies scoping to exactly those folders (allFolders: false)
+  // unless allFolders is explicitly passed as true, which clears the
+  // restriction and goes back to seeing everything.
+  const restrictToFolders = Array.isArray(folderIds) && allFolders !== true;
+  let validFolderIds: string[] = [];
+  if (restrictToFolders) {
+    const rootFolders = await prisma.projectFolder.findMany({
+      where: { id: { in: folderIds }, projectId: id, parentId: null },
+      select: { id: true },
+    });
+    validFolderIds = rootFolders.map((f) => f.id);
+  }
 
   try {
-    const member = await prisma.projectMember.update({
-      where: { id: memberId, projectId: id },
-      data: {
-        ...(role && { role: role === "EDITOR" ? "EDITOR" : "VIEWER" }),
-        ...(canViewBudget !== undefined && { canViewBudget: Boolean(canViewBudget) }),
-      },
+    const member = await prisma.$transaction(async (tx) => {
+      const m = await tx.projectMember.update({
+        where: { id: memberId, projectId: id },
+        data: {
+          ...(role && { role: role === "EDITOR" ? "EDITOR" : "VIEWER" }),
+          ...(canViewBudget !== undefined && { canViewBudget: Boolean(canViewBudget) }),
+          ...(allFolders === true && { allFolders: true }),
+          ...(restrictToFolders && { allFolders: false }),
+        },
+      });
+
+      if (allFolders === true) {
+        await tx.projectMemberFolder.deleteMany({ where: { memberId: m.id } });
+      } else if (restrictToFolders) {
+        await tx.projectMemberFolder.deleteMany({ where: { memberId: m.id } });
+        if (validFolderIds.length > 0) {
+          await tx.projectMemberFolder.createMany({
+            data: validFolderIds.map((folderId) => ({ memberId: m.id, folderId })),
+          });
+        }
+      }
+
+      return m;
     });
     return NextResponse.json(member);
   } catch {

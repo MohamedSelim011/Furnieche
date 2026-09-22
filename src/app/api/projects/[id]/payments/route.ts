@@ -20,7 +20,7 @@ export async function GET(
       where: { token: tokenParam },
       include: { project: true },
     });
-    if (!isPortalTokenValid(accessToken) || accessToken.projectId !== id) {
+    if (!isPortalTokenValid(accessToken) || accessToken.projectId !== id || accessToken.type !== "OWNER") {
       return NextResponse.json({ error: "Invalid token" }, { status: 403 });
     }
     project = accessToken.project;
@@ -80,7 +80,7 @@ export async function POST(
       where: { token },
       include: { project: true },
     });
-    if (!isPortalTokenValid(accessToken) || accessToken.projectId !== id) {
+    if (!isPortalTokenValid(accessToken) || accessToken.projectId !== id || accessToken.type !== "OWNER") {
       return NextResponse.json({ error: "Invalid token" }, { status: 403 });
     }
 

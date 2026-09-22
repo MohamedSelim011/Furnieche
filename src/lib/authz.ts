@@ -40,6 +40,65 @@ export function canEdit(access: ProjectAccess): boolean {
 }
 
 /**
+ * Which main (root) folders a user is allowed to see/act on for a project.
+ * "ALL" covers the project owner and any member whose allFolders flag is
+ * still true (the default — this is what keeps members added before
+ * per-folder access existed working exactly as before).
+ */
+export async function getAllowedFolderRootIds(
+  userId: string,
+  projectId: string
+): Promise<"ALL" | string[]> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { engineerId: true },
+  });
+  if (!project) return [];
+  if (project.engineerId === userId) return "ALL";
+
+  const member = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId } },
+    include: { folderAccess: { select: { folderId: true } } },
+  });
+  if (!member) return [];
+  if (member.allFolders) return "ALL";
+  return member.folderAccess.map((f) => f.folderId);
+}
+
+/** Walks a folder's parent chain up to its main (root) folder. */
+export async function resolveRootFolderId(folderId: string): Promise<string> {
+  let current = await prisma.projectFolder.findUnique({
+    where: { id: folderId },
+    select: { id: true, parentId: true },
+  });
+  const seen = new Set<string>();
+  while (current?.parentId && !seen.has(current.id)) {
+    seen.add(current.id);
+    current = await prisma.projectFolder.findUnique({
+      where: { id: current.parentId },
+      select: { id: true, parentId: true },
+    });
+  }
+  return current?.id ?? folderId;
+}
+
+/**
+ * Whether a user can see/act on a specific folder (root or nested) — access
+ * to a main folder implies access to everything nested under it.
+ */
+export async function canAccessFolder(
+  userId: string,
+  projectId: string,
+  folderId: string
+): Promise<boolean> {
+  const allowed = await getAllowedFolderRootIds(userId, projectId);
+  if (allowed === "ALL") return true;
+  if (allowed.length === 0) return false;
+  const rootId = await resolveRootFolderId(folderId);
+  return allowed.includes(rootId);
+}
+
+/**
  * A portal AccessToken is valid only if it's active AND not past its
  * expiresAt. Every route that accepts a client portal token should check
  * this — checking `isActive` alone (as several routes used to) leaves an

@@ -21,7 +21,7 @@ async function getWalletData(token: string) {
     },
   });
 
-  if (!isPortalTokenValid(accessToken)) return null;
+  if (!isPortalTokenValid(accessToken) || accessToken.type !== "OWNER") return null;
 
   const { project } = accessToken;
   const payments = project.payments;
@@ -59,7 +59,7 @@ export default async function ClientWalletPage({
 
   return (
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto pb-24">
-      <PortalNav token={token} />
+      <PortalNav token={token} linkType="OWNER" />
 
       {/* Header */}
       <div className="bg-white px-4 pt-10 pb-4 border-b border-gray-100">

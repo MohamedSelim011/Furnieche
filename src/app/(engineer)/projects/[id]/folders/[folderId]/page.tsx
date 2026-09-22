@@ -2,8 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Loader2, Trash2, FileText, Image as ImageIcon, Video } from "lucide-react";
+import {
+  ArrowLeft, Plus, Loader2, Trash2, FileText, Image as ImageIcon, Video,
+  FolderOpen, FolderPlus, ChevronRight,
+} from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
@@ -13,6 +18,13 @@ type ProjectFile = {
   url: string;
   type: "IMAGE" | "VIDEO" | "DOCUMENT";
   progressPercent: number;
+};
+
+type Subfolder = {
+  id: string;
+  name: string;
+  progressPercent: number;
+  _count: { files: number; children: number };
 };
 
 function fileIcon(type: ProjectFile["type"]) {
@@ -34,22 +46,30 @@ export default function FolderDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [folderName, setFolderName] = useState("");
+  const [subfolders, setSubfolders] = useState<Subfolder[]>([]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
+  const [addingSubfolder, setAddingSubfolder] = useState(false);
+  const [newSubfolderName, setNewSubfolderName] = useState("");
+  const [creatingSubfolder, setCreatingSubfolder] = useState(false);
 
+  const progressSources = [...subfolders.map((s) => s.progressPercent), ...files.map((f) => f.progressPercent)];
   const progress =
-    files.length > 0
-      ? Math.round(files.reduce((sum, f) => sum + f.progressPercent, 0) / files.length)
+    progressSources.length > 0
+      ? Math.round(progressSources.reduce((sum, p) => sum + p, 0) / progressSources.length)
       : 0;
 
-  useEffect(() => {
-    fetch(`/api/projects/${id}/folders`)
-      .then((r) => r.json())
-      .then((data: { id: string; name: string }[]) => {
-        setFolderName(data.find((f) => f.id === folderId)?.name ?? "Folder");
-      })
+  function load() {
+    fetch(`/api/projects/${id}/folders/${folderId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { name: string } | null) => setFolderName(data?.name ?? "Folder"))
+      .catch(() => {});
+
+    fetch(`/api/projects/${id}/folders?parentId=${folderId}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setSubfolders)
       .catch(() => {});
 
     fetch(`/api/projects/${id}/folders/${folderId}/files`)
@@ -57,16 +77,37 @@ export default function FolderDetailPage() {
       .then(setFiles)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [id, folderId]);
+  }
+
+  useEffect(load, [id, folderId]);
+
+  async function addSubfolder() {
+    if (!newSubfolderName.trim()) return;
+    setCreatingSubfolder(true);
+    try {
+      const res = await fetch(`/api/projects/${id}/folders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newSubfolderName.trim(), parentId: folderId }),
+      });
+      if (!res.ok) throw new Error();
+      const created = await res.json();
+      setSubfolders((prev) => [...prev, { ...created, _count: { files: 0, children: 0 } }]);
+      setNewSubfolderName("");
+      setAddingSubfolder(false);
+      toast.success("Subfolder added");
+    } catch {
+      toast.error("Failed to add subfolder");
+    } finally {
+      setCreatingSubfolder(false);
+    }
+  }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
     if (selected.length === 0) return;
     setUploading(true);
 
-    // Upload files in parallel instead of one at a time — these are
-    // independent Storage uploads + API calls, so serializing them just
-    // adds up each file's latency instead of overlapping it.
     const results = await Promise.allSettled(
       selected.map(async (file) => {
         const ext = file.name.split(".").pop();
@@ -142,6 +183,18 @@ export default function FolderDetailPage() {
     }
   }
 
+  async function deleteSubfolder(subId: string) {
+    if (!confirm("Delete this subfolder and everything inside it?")) return;
+    try {
+      const res = await fetch(`/api/projects/${id}/folders/${subId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setSubfolders((prev) => prev.filter((s) => s.id !== subId));
+      toast.success("Subfolder removed");
+    } catch {
+      toast.error("Failed to delete subfolder");
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white max-w-md mx-auto flex items-center justify-center">
@@ -159,7 +212,10 @@ export default function FolderDetailPage() {
           </button>
           <div>
             <h1 className="text-xl font-bold text-gray-900">{folderName}</h1>
-            <p className="text-xs text-gray-400">{files.length} file{files.length === 1 ? "" : "s"}</p>
+            <p className="text-xs text-gray-400">
+              {subfolders.length > 0 && `${subfolders.length} subfolder${subfolders.length === 1 ? "" : "s"} · `}
+              {files.length} file{files.length === 1 ? "" : "s"}
+            </p>
           </div>
         </div>
 
@@ -172,8 +228,60 @@ export default function FolderDetailPage() {
       </div>
 
       <div className="px-4 pt-4 space-y-2">
-        {files.length === 0 && (
-          <p className="text-center text-sm text-gray-400 py-8">No files yet</p>
+        {subfolders.length > 0 && (
+          <div className="space-y-2 mb-1">
+            {subfolders.map((sub) => (
+              <div key={sub.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex items-center gap-3">
+                <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
+                  <FolderOpen size={16} className="text-brand-600" />
+                </div>
+                <button
+                  onClick={() => router.push(`/projects/${id}/folders/${sub.id}`)}
+                  className="flex-1 min-w-0 text-left"
+                >
+                  <p className="text-sm font-medium text-gray-800 truncate">{sub.name}</p>
+                  <p className="text-xs text-gray-400">
+                    {sub._count.children > 0 && `${sub._count.children} subfolder${sub._count.children === 1 ? "" : "s"} · `}
+                    {sub._count.files} file{sub._count.files === 1 ? "" : "s"} · {sub.progressPercent}%
+                  </p>
+                </button>
+                <button onClick={() => deleteSubfolder(sub.id)} className="shrink-0">
+                  <Trash2 size={14} className="text-red-400" />
+                </button>
+                <button onClick={() => router.push(`/projects/${id}/folders/${sub.id}`)} className="shrink-0">
+                  <ChevronRight size={14} className="text-gray-300" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {addingSubfolder ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex gap-2">
+            <Input
+              placeholder="Subfolder name..."
+              value={newSubfolderName}
+              onChange={(e) => setNewSubfolderName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addSubfolder()}
+              autoFocus
+              className="h-10 text-sm flex-1"
+            />
+            <Button size="sm" onClick={addSubfolder} disabled={creatingSubfolder || !newSubfolderName.trim()}>Add</Button>
+            <button onClick={() => { setAddingSubfolder(false); setNewSubfolderName(""); }} className="text-xs text-gray-400 px-1">
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setAddingSubfolder(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-sm text-brand-600 font-semibold rounded-2xl border border-dashed border-brand-200 hover:bg-blue-50 transition-colors"
+          >
+            <FolderPlus size={15} /> Add subfolder
+          </button>
+        )}
+
+        {files.length === 0 && subfolders.length === 0 && (
+          <p className="text-center text-sm text-gray-400 py-6">Nothing here yet</p>
         )}
 
         {files.map((file) => (

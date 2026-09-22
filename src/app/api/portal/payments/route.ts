@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     include: { project: true },
   });
 
-  if (!isPortalTokenValid(accessToken)) {
+  if (!isPortalTokenValid(accessToken) || accessToken.type !== "OWNER") {
     return NextResponse.json({ error: "Invalid token" }, { status: 403 });
   }
 
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     where: { token },
   });
 
-  if (!isPortalTokenValid(accessToken)) {
+  if (!isPortalTokenValid(accessToken) || accessToken.type !== "OWNER") {
     return NextResponse.json({ error: "Invalid token" }, { status: 403 });
   }
 

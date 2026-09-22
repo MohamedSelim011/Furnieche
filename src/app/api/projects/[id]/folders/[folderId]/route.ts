@@ -2,7 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
-import { getProjectAccess, canEdit } from "@/lib/authz";
+import { getProjectAccess, canEdit, canAccessFolder } from "@/lib/authz";
+import { propagateProgressUpward } from "@/lib/progress";
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string; folderId: string }> }
+) {
+  const { id, folderId } = await params;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  await syncUser(user);
+
+  const access = await getProjectAccess(user.id, id);
+  if (!access.role) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const folder = await prisma.projectFolder.findUnique({ where: { id: folderId } });
+  if (!folder || folder.projectId !== id || !(await canAccessFolder(user.id, id, folderId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(folder);
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -18,6 +41,11 @@ export async function PATCH(
   const access = await getProjectAccess(user.id, id);
   if (!canEdit(access)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const existing = await prisma.projectFolder.findUnique({ where: { id: folderId } });
+  if (!existing || existing.projectId !== id || !(await canAccessFolder(user.id, id, folderId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const body = await req.json();
   const { name, description, order, progressPercent } = body;
 
@@ -31,21 +59,14 @@ export async function PATCH(
       ...(name && { name: name.trim() }),
       ...(description !== undefined && { description }),
       ...(order !== undefined && { order }),
-      // Manual override — a folder with files will get this recalculated
-      // back to the files' average the next time a file's progress changes.
+      // Manual override — a folder with files/subfolders will get this
+      // recalculated back to their average the next time one changes.
       ...(progressPercent !== undefined && { progressPercent }),
     },
   });
 
   if (progressPercent !== undefined) {
-    const folders = await prisma.projectFolder.findMany({
-      where: { projectId: id },
-      select: { progressPercent: true },
-    });
-    const projectProgress = Math.round(
-      folders.reduce((sum, f) => sum + f.progressPercent, 0) / folders.length
-    );
-    await prisma.project.update({ where: { id }, data: { progressPercent: projectProgress } });
+    await propagateProgressUpward(id, existing.parentId);
   }
 
   return NextResponse.json(folder);
@@ -65,18 +86,17 @@ export async function DELETE(
   const access = await getProjectAccess(user.id, id);
   if (!canEdit(access)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const existing = await prisma.projectFolder.findUnique({ where: { id: folderId } });
+  if (!existing || existing.projectId !== id || !(await canAccessFolder(user.id, id, folderId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Deleting a main folder also removes any per-member access grants that
+  // pointed at it (cascades via the FK) and, via the self-relation cascade,
+  // every subfolder and file nested underneath it.
   await prisma.projectFolder.delete({ where: { id: folderId, projectId: id } });
 
-  // Recompute overall project progress now that a folder is gone.
-  const folders = await prisma.projectFolder.findMany({
-    where: { projectId: id },
-    select: { progressPercent: true },
-  });
-  const projectProgress =
-    folders.length > 0
-      ? Math.round(folders.reduce((sum, f) => sum + f.progressPercent, 0) / folders.length)
-      : 0;
-  await prisma.project.update({ where: { id }, data: { progressPercent: projectProgress } });
+  await propagateProgressUpward(id, existing.parentId);
 
   return new NextResponse(null, { status: 204 });
 }

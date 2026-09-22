@@ -20,7 +20,10 @@ export async function GET(
 
   const members = await prisma.projectMember.findMany({
     where: { projectId: id },
-    include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+    include: {
+      user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      folderAccess: { select: { folderId: true } },
+    },
     orderBy: { createdAt: "asc" },
   });
 
@@ -44,7 +47,7 @@ export async function POST(
 
   const project = await prisma.project.findUnique({ where: { id }, select: { companyId: true } });
   const body = await req.json();
-  const { userId, role, canViewBudget } = body;
+  const { userId, role, canViewBudget, folderIds } = body;
   if (!userId) return NextResponse.json({ error: "Missing userId" }, { status: 400 });
 
   // The invited user must be in the same company.
@@ -53,18 +56,44 @@ export async function POST(
     return NextResponse.json({ error: "User is not a member of your company" }, { status: 400 });
   }
 
-  const member = await prisma.projectMember.upsert({
-    where: { projectId_userId: { projectId: id, userId } },
-    update: {
-      role: role === "EDITOR" ? "EDITOR" : "VIEWER",
-      canViewBudget: Boolean(canViewBudget),
-    },
-    create: {
-      projectId: id,
-      userId,
-      role: role === "EDITOR" ? "EDITOR" : "VIEWER",
-      canViewBudget: Boolean(canViewBudget),
-    },
+  // Only main (root) folders of this project are valid grants.
+  let validFolderIds: string[] = [];
+  if (Array.isArray(folderIds)) {
+    const rootFolders = await prisma.projectFolder.findMany({
+      where: { id: { in: folderIds }, projectId: id, parentId: null },
+      select: { id: true },
+    });
+    validFolderIds = rootFolders.map((f) => f.id);
+  }
+  const restrictToFolders = Array.isArray(folderIds);
+
+  const member = await prisma.$transaction(async (tx) => {
+    const m = await tx.projectMember.upsert({
+      where: { projectId_userId: { projectId: id, userId } },
+      update: {
+        role: role === "EDITOR" ? "EDITOR" : "VIEWER",
+        canViewBudget: Boolean(canViewBudget),
+        ...(restrictToFolders && { allFolders: false }),
+      },
+      create: {
+        projectId: id,
+        userId,
+        role: role === "EDITOR" ? "EDITOR" : "VIEWER",
+        canViewBudget: Boolean(canViewBudget),
+        allFolders: !restrictToFolders,
+      },
+    });
+
+    if (restrictToFolders) {
+      await tx.projectMemberFolder.deleteMany({ where: { memberId: m.id } });
+      if (validFolderIds.length > 0) {
+        await tx.projectMemberFolder.createMany({
+          data: validFolderIds.map((folderId) => ({ memberId: m.id, folderId })),
+        });
+      }
+    }
+
+    return m;
   });
 
   return NextResponse.json(member, { status: 201 });

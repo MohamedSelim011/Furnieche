@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
-import { getProjectAccess, canEdit } from "@/lib/authz";
+import { getProjectAccess, canEdit, canAccessFolder } from "@/lib/authz";
 import { recalcFolderAndProjectProgress } from "@/lib/progress";
 
 export async function GET(
@@ -19,11 +19,14 @@ export async function GET(
   const access = await getProjectAccess(user.id, id);
   if (!access.role) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Confirm folderId actually belongs to this project — otherwise a valid
+  // Confirm folderId actually belongs to this project (otherwise a valid
   // access check on `id` would let someone read another project's files by
-  // guessing/enumerating a folderId.
+  // guessing/enumerating a folderId), and that this user's per-folder
+  // access grants — if they have any — cover this folder.
   const folder = await prisma.projectFolder.findFirst({ where: { id: folderId, projectId: id } });
-  if (!folder) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!folder || !(await canAccessFolder(user.id, id, folderId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const files = await prisma.projectFile.findMany({
     where: { folderId },
@@ -51,7 +54,9 @@ export async function POST(
   if (!canEdit(access)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const folder = await prisma.projectFolder.findFirst({ where: { id: folderId, projectId: id } });
-  if (!folder) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!folder || !(await canAccessFolder(user.id, id, folderId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const body = await req.json();
   const { name, url, type, sizeBytes, progressPercent } = body;

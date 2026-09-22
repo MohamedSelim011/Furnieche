@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
   ArrowLeft, Plus, Clock, MapPin,
-  ChevronRight, Wallet, FolderOpen, Eye,
+  ChevronRight, Wallet, FolderOpen, Eye, Link2,
 } from "lucide-react";
 import { PageShell } from "@/components/layout/page-shell";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,6 @@ import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 import { formatDate, formatRelativeTime } from "@/lib/utils";
 import { getProjectAccess, canEdit } from "@/lib/authz";
-import { SharePortalButton } from "./share-portal-button";
 import { DeleteProjectButton } from "./delete-project-button";
 import { ShareSection } from "./share-section";
 
@@ -20,15 +19,19 @@ async function getProject(id: string) {
   return prisma.project.findUnique({
     where: { id },
     include: {
-      folders: { orderBy: { order: "asc" } },
+      folders: { where: { parentId: null }, orderBy: { order: "asc" } },
       updates: {
         where: { isPublished: true },
         include: { media: true, comments: true },
         orderBy: { createdAt: "desc" },
         take: 5,
       },
-      accessTokens: { where: { isActive: true }, take: 1 },
-      members: { include: { user: { select: { id: true, name: true, email: true } } } },
+      members: {
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          folderAccess: { select: { folderId: true } },
+        },
+      },
     },
   });
 }
@@ -58,7 +61,6 @@ export default async function ProjectDetailPage({
     totalFolders > 0
       ? Math.round(project.folders.reduce((sum, f) => sum + f.progressPercent, 0) / totalFolders)
       : 0;
-  const portalToken = project.accessTokens[0]?.token;
 
   // Company teammates available to add (same company, not already a member, not the owner).
   const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { companyId: true } });
@@ -83,7 +85,15 @@ export default async function ProjectDetailPage({
           </Link>
           <div className="flex items-center gap-2">
             {access.role === "OWNER" && <DeleteProjectButton projectId={id} />}
-            {portalToken && editable && <SharePortalButton token={portalToken} projectName={project.name} />}
+            {editable && (
+              <Link
+                href={`/projects/${id}/links`}
+                className="w-9 h-9 bg-white border border-gray-200 rounded-xl flex items-center justify-center shadow-sm"
+                title="Client links"
+              >
+                <Link2 size={16} className="text-gray-600" />
+              </Link>
+            )}
             {access.canViewBudget && (
               <Link
                 href={`/projects/${id}/wallet`}
@@ -180,6 +190,7 @@ export default async function ProjectDetailPage({
           <ShareSection
             projectId={id}
             isOwner={access.role === "OWNER"}
+            folders={project.folders.map((f) => ({ id: f.id, name: f.name }))}
             members={project.members.map((m) => ({
               id: m.id,
               userId: m.userId,
@@ -187,6 +198,8 @@ export default async function ProjectDetailPage({
               email: m.user.email,
               role: m.role,
               canViewBudget: m.canViewBudget,
+              allFolders: m.allFolders,
+              folderIds: m.folderAccess.map((fa) => fa.folderId),
             }))}
             availableTeammates={availableTeammates}
           />

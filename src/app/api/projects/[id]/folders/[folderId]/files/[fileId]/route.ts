@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
-import { getProjectAccess, canEdit } from "@/lib/authz";
+import { getProjectAccess, canEdit, canAccessFolder } from "@/lib/authz";
 import { recalcFolderAndProjectProgress } from "@/lib/progress";
 
 export async function PATCH(
@@ -20,7 +20,9 @@ export async function PATCH(
   if (!canEdit(access)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const folder = await prisma.projectFolder.findFirst({ where: { id: folderId, projectId: id } });
-  if (!folder) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!folder || !(await canAccessFolder(user.id, id, folderId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const body = await req.json();
   const { name, url, progressPercent } = body;
@@ -58,7 +60,9 @@ export async function DELETE(
   if (!canEdit(access)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const folder = await prisma.projectFolder.findFirst({ where: { id: folderId, projectId: id } });
-  if (!folder) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!folder || !(await canAccessFolder(user.id, id, folderId))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   await prisma.projectFile.delete({ where: { id: fileId, folderId } });
 

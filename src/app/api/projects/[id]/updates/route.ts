@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 import { sendUpdatePublishedEmail } from "@/lib/email";
-import { getProjectAccess, canEdit } from "@/lib/authz";
+import { getProjectAccess, canEdit, canAccessFolder } from "@/lib/authz";
 
 export async function GET(
   _req: NextRequest,
@@ -44,6 +44,13 @@ export async function POST(
 
   const body = await req.json();
   const { title, description, category, location, media, isPublished, folderId } = body;
+
+  if (folderId) {
+    const folder = await prisma.projectFolder.findFirst({ where: { id: folderId, projectId: id } });
+    if (!folder || !(await canAccessFolder(user.id, id, folderId))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+  }
 
   const update = await prisma.projectUpdate.create({
     data: {
@@ -86,7 +93,7 @@ export async function POST(
     const project = await prisma.project.findUnique({
       where: { id },
       include: {
-        accessTokens: { where: { isActive: true }, take: 1 },
+        accessTokens: { where: { isActive: true, type: "OWNER" }, take: 1 },
       },
     });
 

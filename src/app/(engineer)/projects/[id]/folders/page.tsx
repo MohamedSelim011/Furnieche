@@ -18,7 +18,7 @@ type Folder = {
   order: number;
   progressPercent: number;
   isDefault: boolean;
-  _count: { files: number };
+  _count: { files: number; children: number };
 };
 
 export default function FoldersPage() {
@@ -56,7 +56,7 @@ export default function FoldersPage() {
       });
       if (!res.ok) throw new Error();
       const folder = await res.json();
-      setFolders((prev) => [...prev, { ...folder, _count: { files: 0 } }]);
+      setFolders((prev) => [...prev, { ...folder, _count: { files: 0, children: 0 } }]);
       setNewFolderName("");
       setAddingFolder(false);
       toast.success("Folder added");
@@ -183,7 +183,10 @@ export default function FoldersPage() {
                   className="flex-1 min-w-0 text-left"
                 >
                   <p className="text-sm font-medium text-gray-800 truncate">{folder.name}</p>
-                  <p className="text-xs text-gray-400">{folder._count.files} file{folder._count.files === 1 ? "" : "s"} · {folder.progressPercent}%</p>
+                  <p className="text-xs text-gray-400">
+                    {folder._count.children > 0 && `${folder._count.children} subfolder${folder._count.children === 1 ? "" : "s"} · `}
+                    {folder._count.files} file{folder._count.files === 1 ? "" : "s"} · {folder.progressPercent}%
+                  </p>
                 </button>
               )}
 

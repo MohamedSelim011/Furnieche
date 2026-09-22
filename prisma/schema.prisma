@@ -20,6 +20,11 @@ enum ProjectRole {
   VIEWER
 }
 
+enum PortalLinkType {
+  OWNER
+  VISITOR
+}
+
 enum ProjectStatus {
   ACTIVE
   ON_HOLD
@@ -152,10 +157,30 @@ model ProjectMember {
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   role          ProjectRole @default(VIEWER)
   canViewBudget Boolean     @default(false)
+  // When true (the default — preserves existing members' access as-is), this
+  // member can see every folder. When false, access is limited to exactly
+  // the folders listed in folderAccess (which may be empty).
+  allFolders    Boolean     @default(true)
   createdAt     DateTime    @default(now())
+
+  folderAccess ProjectMemberFolder[]
 
   @@unique([projectId, userId])
   @@map("project_members")
+}
+
+// ─── Per-folder access grants (only used when a member's allFolders is false) ─
+
+model ProjectMemberFolder {
+  id        String        @id @default(uuid())
+  memberId  String
+  member    ProjectMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  folderId  String
+  folder    ProjectFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([memberId, folderId])
+  @@map("project_member_folders")
 }
 
 // ─── Payments ─────────────────────────────────────────────────────────────────
@@ -189,8 +214,14 @@ model ProjectFolder {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  files   ProjectFile[]
-  updates ProjectUpdate[]
+  // Folders can nest — a null parentId means this is a main/root folder.
+  parentId String?
+  parent   ProjectFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children ProjectFolder[] @relation("FolderTree")
+
+  files        ProjectFile[]
+  updates      ProjectUpdate[]
+  memberAccess ProjectMemberFolder[]
 
   @@map("project_steps")
 }
@@ -271,14 +302,18 @@ model Comment {
 // ─── Access Tokens (Client Portal) ───────────────────────────────────────────
 
 model AccessToken {
-  id         String    @id @default(uuid())
+  id         String         @id @default(uuid())
   projectId  String
-  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  token      String    @unique @default(uuid())
-  isActive   Boolean   @default(true)
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  token      String         @unique @default(uuid())
+  // OWNER link sees everything including the wallet; VISITOR sees everything
+  // except the wallet. Defaults to OWNER so already-issued links (created
+  // before this field existed) keep behaving exactly as they do today.
+  type       PortalLinkType @default(OWNER)
+  isActive   Boolean        @default(true)
   expiresAt  DateTime?
   lastUsedAt DateTime?
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime       @default(now())
 
   @@map("access_tokens")
 }

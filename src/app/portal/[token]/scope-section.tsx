@@ -16,6 +16,7 @@ type Folder = {
   name: string;
   progressPercent: number;
   files: File[];
+  children?: Folder[];
 };
 
 function fileIcon(type: File["type"]) {
@@ -62,23 +63,51 @@ export function ScopeSection({ folders }: { folders: Folder[] }) {
                   </div>
 
                   {expanded === folder.id && (
-                    <div className="ml-5 space-y-1.5">
-                      {folder.files.length === 0 ? (
+                    <div className="ml-5 space-y-2.5">
+                      {folder.files.length === 0 && !folder.children?.length ? (
                         <p className="text-xs text-gray-400">No files yet</p>
                       ) : (
-                        folder.files.map((file) => (
-                          <a
-                            key={file.id}
-                            href={file.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-2 text-xs text-gray-600 hover:underline"
-                          >
-                            {fileIcon(file.type)}
-                            <span className="flex-1 truncate">{file.name}</span>
-                            <span className="text-gray-400 shrink-0">{file.progressPercent}%</span>
-                          </a>
-                        ))
+                        <>
+                          {folder.files.map((file) => (
+                            <a
+                              key={file.id}
+                              href={file.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-2 text-xs text-gray-600 hover:underline"
+                            >
+                              {fileIcon(file.type)}
+                              <span className="flex-1 truncate">{file.name}</span>
+                              <span className="text-gray-400 shrink-0">{file.progressPercent}%</span>
+                            </a>
+                          ))}
+                          {folder.children?.map((child) => (
+                            <div key={child.id}>
+                              <div className="flex items-center gap-2">
+                                <FolderOpen size={12} className="text-gray-400 shrink-0" />
+                                <span className="text-xs font-semibold text-gray-700 flex-1 truncate">{child.name}</span>
+                                <span className="text-[11px] text-gray-400">{child.progressPercent}%</span>
+                              </div>
+                              {child.files.length > 0 && (
+                                <div className="ml-5 mt-1 space-y-1">
+                                  {child.files.map((file) => (
+                                    <a
+                                      key={file.id}
+                                      href={file.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="flex items-center gap-2 text-xs text-gray-600 hover:underline"
+                                    >
+                                      {fileIcon(file.type)}
+                                      <span className="flex-1 truncate">{file.name}</span>
+                                      <span className="text-gray-400 shrink-0">{file.progressPercent}%</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </>
                       )}
                     </div>
                   )}
