@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, House, Plus, Settings, Wallet } from "lucide-react";
+import { House, MessageCircle, Plus, Settings, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const leftItems = [
@@ -11,7 +12,7 @@ const leftItems = [
 ];
 
 const rightItems = [
-  { href: "/notifications", label: "Alerts", icon: Bell },
+  { href: "/chats", label: "Chat", icon: MessageCircle },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -20,7 +21,8 @@ function NavItem({
   label,
   icon: Icon,
   pathname,
-}: (typeof leftItems)[number] & { pathname: string }) {
+  badge = 0,
+}: (typeof leftItems)[number] & { pathname: string; badge?: number }) {
   const isActive = pathname === href || pathname.startsWith(href + "/");
   return (
     <Link
@@ -32,11 +34,16 @@ function NavItem({
     >
       <span
         className={cn(
-          "w-10 h-8 rounded-xl flex items-center justify-center transition-colors",
+          "relative w-10 h-8 rounded-xl flex items-center justify-center transition-colors",
           isActive && "bg-brand-50"
         )}
       >
         <Icon size={21} strokeWidth={isActive ? 2.4 : 1.8} />
+        {badge > 0 && (
+          <span className="absolute -top-0.5 right-0.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white">
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
       </span>
       <span className={cn("text-[10px] font-medium", isActive && "font-semibold")}>{label}</span>
     </Link>
@@ -45,6 +52,25 @@ function NavItem({
 
 export function BottomNav() {
   const pathname = usePathname();
+  const [unreadChats, setUnreadChats] = useState(0);
+
+  // Refresh the chat badge on navigation and every 30s
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      fetch("/api/chats", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!cancelled && d) setUnreadChats(d.totalUnread ?? 0);
+        })
+        .catch(() => {});
+    load();
+    const timer = setInterval(load, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [pathname]);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-none">
@@ -61,7 +87,14 @@ export function BottomNav() {
           </Link>
         </div>
 
-        {rightItems.map((item) => <NavItem key={item.href} {...item} pathname={pathname} />)}
+        {rightItems.map((item) => (
+          <NavItem
+            key={item.href}
+            {...item}
+            pathname={pathname}
+            badge={item.href === "/chats" ? unreadChats : 0}
+          />
+        ))}
       </div>
     </nav>
   );

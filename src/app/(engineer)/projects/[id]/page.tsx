@@ -14,6 +14,7 @@ import { formatDate, formatRelativeTime } from "@/lib/utils";
 import { getProjectAccess, canEdit } from "@/lib/authz";
 import { DeleteProjectButton } from "./delete-project-button";
 import { ShareSection } from "./share-section";
+import { ProjectCover } from "./project-cover";
 
 async function getProject(id: string) {
   return prisma.project.findUnique({
@@ -117,6 +118,8 @@ export default async function ProjectDetailPage({
             )}
           </div>
         </div>
+
+        <ProjectCover projectId={id} coverUrl={project.coverUrl} editable={editable} />
 
         <Badge variant={project.category.toLowerCase() as "residential" | "commercial" | "hospitality" | "other"}>
           {project.category}

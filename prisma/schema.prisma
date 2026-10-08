@@ -75,6 +75,7 @@ model User {
   comments       Comment[]
   auditLogs      AuditLog[]
   projectMembers ProjectMember[]
+  chatReads      ChatRead[]
   uploadedFiles  ProjectFile[]
 
   @@map("users")
@@ -127,6 +128,7 @@ model Project {
   startDate        DateTime?
   estimatedEndDate DateTime?
   progressPercent  Int             @default(0)
+  coverUrl         String?
   budget           Float?
 
   engineerId String
@@ -144,6 +146,9 @@ model Project {
   payments         Payment[]
   members          ProjectMember[]
   contractAnalyses ContractAnalysis[]
+  imageEdits       ImageEdit[]
+  comments         Comment[]
+  chatReads        ChatRead[]
 
   @@map("projects")
 }
@@ -238,9 +243,13 @@ model ProjectFile {
   type             MediaType          @default(DOCUMENT)
   sizeBytes        Int?
   progressPercent  Int                @default(0)
+  // Manual sort position inside the folder (engineer drags to reorder)
+  order            Int                @default(0)
   uploadedById     String?
   uploadedBy       User?              @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
   contractAnalyses ContractAnalysis[]
+  comments         Comment[]
+  imageEdits       ImageEdit[]
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -286,18 +295,29 @@ model Media {
 
 // ─── Comments ─────────────────────────────────────────────────────────────────
 
+// Project chat message. Optionally about a project update or a folder file
+// (shown with that photo/update in the chat). Client messages have no authorId.
 model Comment {
-  id          String        @id @default(uuid())
-  updateId    String
-  update      ProjectUpdate @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  id          String         @id @default(uuid())
+  updateId    String?
+  update      ProjectUpdate? @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  fileId      String?
+  file        ProjectFile?   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  // Set on all new messages; older update comments are found via their update
+  projectId   String?
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Set when the message is a client's AI photo edit request
+  imageEditId String?        @unique
+  imageEdit   ImageEdit?     @relation(fields: [imageEditId], references: [id], onDelete: Cascade)
   authorId    String?
-  author      User?         @relation(fields: [authorId], references: [id])
+  author      User?          @relation(fields: [authorId], references: [id])
   clientName  String?
   clientEmail String?
   body        String
-  isEdited    Boolean       @default(false)
-  createdAt   DateTime      @default(now())
+  isEdited    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
 
+  @@index([projectId, createdAt])
   @@map("comments")
 }
 
@@ -363,4 +383,47 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+enum ImageEditStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// A client's AI edit request on a folder photo ("make the wall more creamy").
+model ImageEdit {
+  id            String          @id @default(uuid())
+  projectId     String
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fileId        String
+  file          ProjectFile     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  prompt        String
+  status        ImageEditStatus @default(PROCESSING)
+  resultUrl     String?
+  error         String?
+  clientName    String?
+  // Which portal link asked for it (used for the daily edit limit)
+  accessTokenId String?
+  // Set when the engineer saves the result into the folder as a new file
+  savedFileId   String?
+  comment       Comment?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([fileId])
+  @@index([accessTokenId, createdAt])
+  @@map("image_edits")
+}
+
+// When a team member last opened a project's chat (drives unread dots).
+model ChatRead {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime @default(now())
+
+  @@id([userId, projectId])
+  @@map("chat_reads")
 }

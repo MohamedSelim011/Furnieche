@@ -22,10 +22,10 @@ async function fetchAccessToken(token: string) {
             where: { parentId: null },
             orderBy: { order: "asc" },
             include: {
-              files: { orderBy: { createdAt: "asc" } },
+              files: { orderBy: [{ order: "asc" }, { createdAt: "asc" }] },
               children: {
                 orderBy: { order: "asc" },
-                include: { files: { orderBy: { createdAt: "asc" } } },
+                include: { files: { orderBy: [{ order: "asc" }, { createdAt: "asc" }] } },
               },
             },
           },
@@ -95,6 +95,10 @@ export default async function PortalPage({
       <PortalNav token={token} linkType={result.data.type} />
       {/* Header */}
       <div className="bg-white px-4 pt-10 pb-4 border-b border-gray-100">
+        {project.coverUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={project.coverUrl} alt="" className="w-full h-44 rounded-2xl object-cover mb-4" />
+        )}
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs font-semibold text-brand-600 uppercase tracking-widest mb-1">
@@ -257,7 +261,7 @@ export default async function PortalPage({
         )}
 
         {/* Test 2: expandable project scope */}
-        <ScopeSection folders={project.folders} />
+        <ScopeSection folders={project.folders} token={token} />
 
         <p className="text-[10px] text-gray-300 mt-3 uppercase tracking-widest">Secure Client Portal v2.4.0</p>
       </div>

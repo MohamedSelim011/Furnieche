@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PROJECT_CATEGORIES } from "@/lib/constants";
+import { CoverPhotoPicker } from "@/components/cover-photo-picker";
 import { toast } from "sonner";
 
 type Step1Data = {
@@ -39,6 +40,8 @@ export default function NewProjectPage() {
     clientEmail: "",
     budget: "",
   });
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+
   async function handleSubmit() {
     setLoading(true);
     try {
@@ -47,6 +50,7 @@ export default function NewProjectPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...step1,
+          coverUrl,
           clientName: step2.clientName,
           clientEmail: step2.clientEmail,
           budget: step2.budget ? parseFloat(step2.budget) : null,
@@ -94,11 +98,14 @@ export default function NewProjectPage() {
             </p>
 
             <div className="space-y-4">
+              <CoverPhotoPicker value={coverUrl} onChange={setCoverUrl} />
+
               <div className="space-y-1.5">
                 <Label htmlFor="name">Project Name</Label>
                 <Input
                   id="name"
                   placeholder="e.g. Riverside Apartment 402"
+                  autoComplete="off"
                   value={step1.name}
                   onChange={(e) => setStep1({ ...step1, name: e.target.value })}
                   icon={<Tag size={15} />}
@@ -110,6 +117,7 @@ export default function NewProjectPage() {
                 <Input
                   id="location"
                   placeholder="Enter the full site address..."
+                  autoComplete="off"
                   value={step1.location}
                   onChange={(e) => setStep1({ ...step1, location: e.target.value })}
                   icon={<MapPin size={15} />}
@@ -215,6 +223,7 @@ export default function NewProjectPage() {
                 <Input
                   id="clientName"
                   placeholder="e.g. Marina Bay Holdings"
+                  autoComplete="off"
                   value={step2.clientName}
                   onChange={(e) => setStep2({ ...step2, clientName: e.target.value })}
                   icon={<User size={15} />}

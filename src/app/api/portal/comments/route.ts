@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
   const comment = await prisma.comment.create({
     data: {
       updateId,
+      projectId: accessToken.projectId,
       body: commentBody,
       clientName: clientName ?? null,
       clientEmail: clientEmail ?? null,

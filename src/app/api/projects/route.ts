@@ -5,6 +5,7 @@ import { syncUser } from "@/lib/sync-user";
 import { sendClientPortalEmail } from "@/lib/email";
 import { getPlan } from "@/lib/plans";
 import { DEFAULT_FOLDERS } from "@/lib/constants";
+import { isStorageUrl } from "@/lib/storage";
 
 export async function GET() {
   const supabase = await createClient();
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, category, clientName, clientEmail, location, startDate, estimatedEndDate, budget } = body;
+  const { name, category, clientName, clientEmail, location, startDate, estimatedEndDate, budget, coverUrl } = body;
 
   if (!name || !clientName || !clientEmail) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
       startDate: startDate ? new Date(startDate) : null,
       estimatedEndDate: estimatedEndDate ? new Date(estimatedEndDate) : null,
       budget: budget ?? null,
+      coverUrl: isStorageUrl(coverUrl) ? coverUrl : null,
       engineerId: user.id,
       companyId: dbUser?.company?.id ?? null,
       // Every project starts with the same three folders — Contract, Design,

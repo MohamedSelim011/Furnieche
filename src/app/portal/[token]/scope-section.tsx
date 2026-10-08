@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, FolderOpen, FileText, Image as ImageIcon, Video } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronUp, FolderOpen, FileText, Image as ImageIcon, MessageCircle, Sparkles, Video } from "lucide-react";
 
 type File = {
   id: string;
@@ -25,7 +26,41 @@ function fileIcon(type: File["type"]) {
   return <FileText size={13} className="text-gray-400 shrink-0" />;
 }
 
-export function ScopeSection({ folders }: { folders: Folder[] }) {
+function FileRow({ file, token }: { file: File; token: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <a href={file.url} target="_blank" rel="noreferrer" className="shrink-0">
+        {file.type === "IMAGE" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={file.url} alt="" className="w-11 h-11 rounded-lg object-cover bg-gray-100" />
+        ) : (
+          <span className="w-11 h-11 rounded-lg bg-gray-50 flex items-center justify-center">{fileIcon(file.type)}</span>
+        )}
+      </a>
+      <a href={file.url} target="_blank" rel="noreferrer" className="flex-1 min-w-0">
+        <span className="block text-xs text-gray-700 truncate">{file.name}</span>
+        <span className="text-[11px] text-gray-400">{file.progressPercent}%</span>
+      </a>
+      <Link
+        href={`/portal/${token}/chat?file=${file.id}`}
+        className="shrink-0 flex items-center gap-1 rounded-full bg-brand-50 text-brand-700 px-2.5 py-1.5 text-[11px] font-semibold"
+      >
+        <MessageCircle size={12} /> Discuss
+      </Link>
+      {file.type === "IMAGE" && (
+        <Link
+          href={`/portal/${token}/chat?file=${file.id}&ai=1`}
+          aria-label="Edit with AI"
+          className="shrink-0 flex items-center gap-1 rounded-full bg-oak-50 text-oak-700 border border-oak-100 px-2 py-1.5 text-[11px] font-semibold"
+        >
+          <Sparkles size={12} /> AI
+        </Link>
+      )}
+    </div>
+  );
+}
+
+export function ScopeSection({ folders, token }: { folders: Folder[]; token: string }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -69,17 +104,7 @@ export function ScopeSection({ folders }: { folders: Folder[] }) {
                       ) : (
                         <>
                           {folder.files.map((file) => (
-                            <a
-                              key={file.id}
-                              href={file.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="flex items-center gap-2 text-xs text-gray-600 hover:underline"
-                            >
-                              {fileIcon(file.type)}
-                              <span className="flex-1 truncate">{file.name}</span>
-                              <span className="text-gray-400 shrink-0">{file.progressPercent}%</span>
-                            </a>
+                            <FileRow key={file.id} file={file} token={token} />
                           ))}
                           {folder.children?.map((child) => (
                             <div key={child.id}>
@@ -89,19 +114,9 @@ export function ScopeSection({ folders }: { folders: Folder[] }) {
                                 <span className="text-[11px] text-gray-400">{child.progressPercent}%</span>
                               </div>
                               {child.files.length > 0 && (
-                                <div className="ml-5 mt-1 space-y-1">
+                                <div className="ml-5 mt-2 space-y-2">
                                   {child.files.map((file) => (
-                                    <a
-                                      key={file.id}
-                                      href={file.url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="flex items-center gap-2 text-xs text-gray-600 hover:underline"
-                                    >
-                                      {fileIcon(file.type)}
-                                      <span className="flex-1 truncate">{file.name}</span>
-                                      <span className="text-gray-400 shrink-0">{file.progressPercent}%</span>
-                                    </a>
+                                    <FileRow key={file.id} file={file} token={token} />
                                   ))}
                                 </div>
                               )}

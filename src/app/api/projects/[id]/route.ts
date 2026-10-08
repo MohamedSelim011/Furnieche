@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 import { getProjectAccess, canEdit } from "@/lib/authz";
+import { isStorageUrl } from "@/lib/storage";
 
 export async function PATCH(
   req: NextRequest,
@@ -16,7 +17,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { status, budget } = body;
+  const { status, budget, coverUrl } = body;
 
   const validStatuses = ["ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED", "DELAYED"];
   if (status && !validStatuses.includes(status)) {
@@ -34,6 +35,8 @@ export async function PATCH(
       where: { id },
       data: {
         ...(status && { status }),
+        ...(coverUrl === null && { coverUrl: null }),
+        ...(isStorageUrl(coverUrl) && { coverUrl }),
         ...(budget !== undefined && { budget: budget === null ? null : parseFloat(budget) }),
       },
     });

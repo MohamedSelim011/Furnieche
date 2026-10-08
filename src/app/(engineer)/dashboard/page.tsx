@@ -61,7 +61,7 @@ async function getProjects(userId: string): Promise<ProjectCardData[]> {
     status: p.status,
     category: p.category,
     updatedAt: p.updatedAt,
-    coverUrl: p.updates[0]?.media[0]?.url ?? null,
+    coverUrl: p.coverUrl ?? p.updates[0]?.media[0]?.url ?? null,
     folderCount: p.folders.filter((f) => f.parentId === null).length,
     fileCount: p.folders.reduce((sum, f) => sum + f._count.files, 0),
     memberCount: p._count.members,
@@ -77,7 +77,9 @@ async function getDashboardStats(userId: string, lastReadAt: Date | null) {
   // Count comments newer than lastReadAt (or last 7 days if never read)
   const commentCutoff = lastReadAt ?? sevenDaysAgo;
 
-  const [active, delayed, completed, pendingComments] = await Promise.all([
+  const myProjects = { OR: [{ engineerId: userId }, { members: { some: { userId } } }] };
+
+  const [active, delayed, completed, pendingComments, newEdits] = await Promise.all([
     prisma.project.count({
       where: { engineerId: userId, status: "ACTIVE" },
     }),
@@ -91,12 +93,15 @@ async function getDashboardStats(userId: string, lastReadAt: Date | null) {
       where: {
         authorId: null,
         createdAt: { gte: commentCutoff },
-        update: { project: { OR: [{ engineerId: userId }, { members: { some: { userId } } }] } },
+        OR: [{ update: { project: myProjects } }, { file: { folder: { project: myProjects } } }],
       },
+    }),
+    prisma.imageEdit.count({
+      where: { status: "COMPLETED", createdAt: { gte: commentCutoff }, project: myProjects },
     }),
   ]);
 
-  return { active, delayed, completed, pendingComments };
+  return { active, delayed, completed, pendingComments: pendingComments + newEdits };
 }
 
 
@@ -181,7 +186,7 @@ export default async function DashboardPage() {
             hint={BarChart3}
             label="Comments"
             value={stats.pendingComments}
-            caption="client replies (7d)"
+            caption="client comments & AI edits"
             tone={stats.pendingComments > 0 ? "warning" : "neutral"}
           />
         </div>

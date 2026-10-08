@@ -3,22 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft, Plus, Loader2, Trash2, FileText, Image as ImageIcon, Video,
-  FolderOpen, FolderPlus, ChevronRight, Sparkles,
+  ArrowLeft, Plus, Loader2, Trash2, FolderOpen, FolderPlus, ChevronRight,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { FileList, type FolderFile } from "./file-list";
 
-type ProjectFile = {
-  id: string;
-  name: string;
-  url: string;
-  type: "IMAGE" | "VIDEO" | "DOCUMENT";
-  progressPercent: number;
-};
+type ProjectFile = FolderFile;
 
 type Subfolder = {
   id: string;
@@ -26,12 +20,6 @@ type Subfolder = {
   progressPercent: number;
   _count: { files: number; children: number };
 };
-
-function fileIcon(type: ProjectFile["type"]) {
-  if (type === "IMAGE") return <ImageIcon size={16} className="text-brand-600" />;
-  if (type === "VIDEO") return <Video size={16} className="text-brand-600" />;
-  return <FileText size={16} className="text-brand-600" />;
-}
 
 function typeForMime(mime: string): ProjectFile["type"] {
   if (mime.startsWith("image")) return "IMAGE";
@@ -50,7 +38,6 @@ export default function FolderDetailPage() {
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState<string | null>(null);
   const [addingSubfolder, setAddingSubfolder] = useState(false);
   const [newSubfolderName, setNewSubfolderName] = useState("");
   const [creatingSubfolder, setCreatingSubfolder] = useState(false);
@@ -155,45 +142,10 @@ export default function FolderDetailPage() {
     e.target.value = "";
   }
 
-  async function updateProgress(fileId: string, progressPercent: number) {
-    setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, progressPercent } : f)));
-  }
-
-  async function commitProgress(fileId: string, progressPercent: number) {
-    setSaving(fileId);
-    try {
-      const res = await fetch(`/api/projects/${id}/folders/${folderId}/files/${fileId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ progressPercent }),
-      });
-      if (!res.ok) throw new Error();
-    } catch {
-      toast.error("Failed to save progress");
-    } finally {
-      setSaving(null);
-    }
-  }
-
   async function errorMessage(res: Response, fallback: string) {
     const data = await res.json().catch(() => null);
     if (res.status === 404) return "You don't have permission to delete this, or it no longer exists";
     return data?.error ?? fallback;
-  }
-
-  async function deleteFile(fileId: string) {
-    setDeleting(fileId);
-    try {
-      const res = await fetch(`/api/projects/${id}/folders/${folderId}/files/${fileId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(await errorMessage(res, "Failed to delete file"));
-      setFiles((prev) => prev.filter((f) => f.id !== fileId));
-      toast.success("File removed");
-    } catch (err) {
-      toast.error(err instanceof Error && err.message ? err.message : "Failed to delete file");
-    } finally {
-      setDeleting(null);
-      setConfirmDelete(null);
-    }
   }
 
   async function deleteSubfolder(subId: string) {
@@ -330,50 +282,7 @@ export default function FolderDetailPage() {
           <p className="text-center text-sm text-gray-400 py-6">Nothing here yet</p>
         )}
 
-        {files.map((file) => (
-          <div key={file.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
-            <div className="flex items-center gap-3">
-              <a href={file.url} target="_blank" rel="noreferrer" className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
-                {fileIcon(file.type)}
-              </a>
-              <div className="flex-1 min-w-0">
-                <a href={file.url} target="_blank" rel="noreferrer" className="text-sm font-medium text-gray-800 truncate block hover:underline">
-                  {file.name}
-                </a>
-              </div>
-              {file.type !== "VIDEO" && (
-                <button
-                  onClick={() => router.push(`/projects/${id}/files/${file.id}/analysis`)}
-                  className="shrink-0 flex items-center gap-1 rounded-full bg-oak-50 text-oak-700 border border-oak-100 px-2 py-1 text-[11px] font-semibold hover:bg-oak-100"
-                >
-                  <Sparkles size={12} /> Analyze
-                </button>
-              )}
-              <span className="text-xs font-semibold text-gray-400 shrink-0">
-                {saving === file.id ? <Loader2 size={12} className="animate-spin" /> : `${file.progressPercent}%`}
-              </span>
-              <button
-                onClick={() => setConfirmDelete(file.id)}
-                aria-label="Delete file"
-                className="shrink-0 w-9 h-9 -my-1 -mr-1 rounded-full flex items-center justify-center hover:bg-red-50"
-              >
-                <Trash2 size={16} className="text-red-400" />
-              </button>
-            </div>
-            {confirmDelete === file.id && deleteConfirm(file.id, "Delete this file?", () => deleteFile(file.id))}
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={file.progressPercent}
-              onChange={(e) => updateProgress(file.id, Number(e.target.value))}
-              onMouseUp={(e) => commitProgress(file.id, Number((e.target as HTMLInputElement).value))}
-              onTouchEnd={(e) => commitProgress(file.id, Number((e.target as HTMLInputElement).value))}
-              className="w-full mt-2.5 accent-brand-600"
-            />
-          </div>
-        ))}
+        <FileList projectId={id} folderId={folderId} files={files} setFiles={setFiles} />
 
         <button
           onClick={() => fileInputRef.current?.click()}
