@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,8 +22,20 @@ export function SmartImg({
 }) {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<"loading" | "loaded" | "failed">("loading");
+  const imgRef = useRef<HTMLImageElement>(null);
 
   const url = attempt === 0 ? src : `${src}${src.includes("?") ? "&" : "?"}retry=${attempt}`;
+
+  // A cached image can finish loading before React hydrates, so its onLoad
+  // never fires — check the element directly once we're running.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img?.complete) {
+      if (img.naturalWidth > 0) setState("loaded");
+      else if (attempt === 0) setTimeout(() => setAttempt(1), 1500);
+      else setState("failed");
+    }
+  }, [url, attempt]);
 
   return (
     <span className={cn("relative block overflow-hidden bg-gray-100", className)}>
@@ -36,6 +48,7 @@ export function SmartImg({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={url}
+          ref={imgRef}
           src={url}
           alt={alt}
           loading={loading}
