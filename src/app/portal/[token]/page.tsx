@@ -6,6 +6,8 @@ import { formatDate, formatRelativeTime, formatTime } from "@/lib/utils";
 import { CommentForm } from "./comment-form";
 import { ScopeSection } from "./scope-section";
 import { PortalNav } from "./portal-nav";
+import { UpdateMedia } from "./update-media";
+import { imgUrl } from "@/lib/img";
 
 type PortalResult =
   | { status: "ok"; data: NonNullable<Awaited<ReturnType<typeof fetchAccessToken>>> }
@@ -97,7 +99,11 @@ export default async function PortalPage({
       <div className="bg-white px-4 pt-10 pb-4 border-b border-gray-100">
         {project.coverUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={project.coverUrl} alt="" className="w-full h-44 rounded-2xl object-cover mb-4" />
+          <img
+            src={imgUrl("cover", project.id, 1080, project.coverUrl)}
+            alt=""
+            className="w-full h-44 rounded-2xl object-cover mb-4 bg-gray-100"
+          />
         )}
         <div className="flex items-start justify-between">
           <div>
@@ -177,27 +183,7 @@ export default async function PortalPage({
                     )}
 
                     {/* Media */}
-                    {update.media.length > 0 && (
-                      <div className={`mt-3 grid gap-1.5 ${update.media.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
-                        {update.media.slice(0, 4).map((m, mi) => (
-                          <div key={m.id} className={`relative rounded-xl overflow-hidden ${
-                            update.media.length === 1 ? "h-48" : "h-32"
-                          }`}>
-                            {m.type === "IMAGE" ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={m.url} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <video src={m.url} className="w-full h-full object-cover" controls />
-                            )}
-                            {mi === 3 && update.media.length > 4 && (
-                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                <span className="text-white font-bold text-lg">+{update.media.length - 4}</span>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {update.media.length > 0 && <UpdateMedia media={update.media} />}
 
                     {/* Comments */}
                     {update.comments.length > 0 && (

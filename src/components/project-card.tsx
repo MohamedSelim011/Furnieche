@@ -6,6 +6,7 @@ import { Camera, Check, ChevronRight, FileText, Folder, Loader2, MoreHorizontal,
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { uploadCoverPhoto } from "@/lib/upload-cover";
+import { imgUrl } from "@/lib/img";
 import { toast } from "sonner";
 
 export type ProjectStatus = "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED" | "DELAYED";
@@ -85,7 +86,7 @@ export function ProjectCard({ project: initial }: { project: ProjectCardData }) 
         body: JSON.stringify({ coverUrl: url }),
       });
       if (!res.ok) throw new Error("Failed to save project photo");
-      setCoverUrl(url);
+      setCoverUrl(imgUrl("cover", initial.id, 320, url));
       toast.success("Project photo updated");
       router.refresh();
     } catch (err) {
@@ -126,7 +127,7 @@ export function ProjectCard({ project: initial }: { project: ProjectCardData }) 
       <div className="flex gap-3">
         <div className="relative w-[104px] h-[84px] shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={cover} alt="" className="w-full h-full rounded-xl object-cover bg-gray-100" />
+          <img src={cover} alt="" loading="lazy" decoding="async" className="w-full h-full rounded-xl object-cover bg-gray-100" />
           {uploadingCover && (
             <span className="absolute inset-0 rounded-xl bg-white/70 flex items-center justify-center">
               <Loader2 size={20} className="text-brand-600 animate-spin" />

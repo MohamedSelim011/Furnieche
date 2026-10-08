@@ -19,6 +19,7 @@ import { syncUser } from "@/lib/sync-user";
 import { getInitials } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { ProjectList } from "@/components/project-list";
+import { imgUrl } from "@/lib/img";
 import type { ProjectCardData } from "@/components/project-card";
 
 const ACTIVE_STATUSES = ["ACTIVE", "ON_HOLD"];
@@ -38,7 +39,7 @@ async function getProjects(userId: string): Promise<ProjectCardData[]> {
         where: { media: { some: { type: "IMAGE" } } },
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { media: { where: { type: "IMAGE" }, take: 1, select: { url: true } } },
+        select: { media: { where: { type: "IMAGE" }, take: 1, select: { id: true, url: true } } },
       },
       _count: { select: { members: true } },
     },
@@ -61,7 +62,11 @@ async function getProjects(userId: string): Promise<ProjectCardData[]> {
     status: p.status,
     category: p.category,
     updatedAt: p.updatedAt,
-    coverUrl: p.coverUrl ?? p.updates[0]?.media[0]?.url ?? null,
+    coverUrl: p.coverUrl
+      ? imgUrl("cover", p.id, 320, p.coverUrl)
+      : p.updates[0]?.media[0]
+        ? imgUrl("media", p.updates[0].media[0].id, 320, p.updates[0].media[0].url)
+        : null,
     folderCount: p.folders.filter((f) => f.parentId === null).length,
     fileCount: p.folders.reduce((sum, f) => sum + f._count.files, 0),
     memberCount: p._count.members,

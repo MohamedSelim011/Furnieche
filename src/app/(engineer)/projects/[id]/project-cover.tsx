@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CoverPhotoPicker } from "@/components/cover-photo-picker";
+import { imgUrl } from "@/lib/img";
 import { toast } from "sonner";
 
 export function ProjectCover({
@@ -21,7 +22,7 @@ export function ProjectCover({
     if (!coverUrl) return null;
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={coverUrl} alt="" className="w-full h-40 rounded-2xl object-cover mb-4" />
+      <img src={imgUrl("cover", projectId, 1080, coverUrl)} alt="" className="w-full h-40 rounded-2xl object-cover mb-4" />
     );
   }
 
@@ -43,5 +44,13 @@ export function ProjectCover({
     }
   }
 
-  return <CoverPhotoPicker value={value} onChange={save} projectId={projectId} className="mb-4" />;
+  return (
+    <CoverPhotoPicker
+      value={value}
+      previewUrl={value ? imgUrl("cover", projectId, 1080, value) : null}
+      onChange={save}
+      projectId={projectId}
+      className="mb-4"
+    />
+  );
 }

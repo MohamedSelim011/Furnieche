@@ -11,9 +11,11 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  Check, FileText, GripVertical, Loader2, MessageCircle, Pencil, Sparkles, Trash2, Video, X,
+  Check, FileText, GripVertical, Loader2, MessageCircle, Pencil, Sparkles, Trash2, Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { imgUrl } from "@/lib/img";
+import { PhotoViewer } from "@/components/photo-viewer";
 import { toast } from "sonner";
 
 export type FolderFile = {
@@ -37,6 +39,7 @@ export function FileList({
   setFiles: React.Dispatch<React.SetStateAction<FolderFile[]>>;
 }) {
   const [viewing, setViewing] = useState<FolderFile | null>(null);
+  const photos = files.filter((f) => f.type === "IMAGE");
   const base = `/api/projects/${projectId}/folders/${folderId}/files`;
 
   const sensors = useSensors(
@@ -84,22 +87,25 @@ export function FileList({
       </DndContext>
 
       {viewing && (
-        <div className="fixed inset-0 z-[60] bg-black/90 flex flex-col">
-          <div className="flex items-center gap-3 px-4 pt-10 pb-3 text-white">
-            <p className="flex-1 text-sm font-medium truncate">{viewing.name}</p>
-            <button
-              onClick={() => setViewing(null)}
-              aria-label="Close"
-              className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center"
+        <PhotoViewer
+          photos={photos.map((p) => ({
+            id: p.id,
+            name: p.name,
+            previewSrc: imgUrl("file", p.id, 320, p.url),
+            src: imgUrl("file", p.id, 1600, p.url),
+            originalUrl: p.url,
+          }))}
+          startIndex={Math.max(0, photos.findIndex((p) => p.id === viewing.id))}
+          onClose={() => setViewing(null)}
+          actions={(photo) => (
+            <a
+              href={`/chats/${projectId}?file=${photo.id}`}
+              className="flex items-center gap-1.5 rounded-full bg-white text-gray-900 px-4 py-2.5 text-sm font-semibold"
             >
-              <X size={20} />
-            </button>
-          </div>
-          <button className="flex-1 flex items-center justify-center p-4 min-h-0" onClick={() => setViewing(null)} aria-label="Close">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={viewing.url} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
-          </button>
-        </div>
+              <MessageCircle size={15} /> Chat about this photo
+            </a>
+          )}
+        />
       )}
     </>
   );
@@ -216,7 +222,13 @@ function FileRow({
         {isImage ? (
           <button onClick={onView} className="shrink-0" aria-label="View photo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={file.url} alt="" className="w-14 h-14 rounded-xl object-cover bg-gray-100" />
+            <img
+              src={imgUrl("file", file.id, 160, file.url)}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="w-14 h-14 rounded-xl object-cover bg-gray-100"
+            />
           </button>
         ) : (
           <a

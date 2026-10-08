@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { FileList, type FolderFile } from "./file-list";
+import { imgUrl } from "@/lib/img";
 
 type ProjectFile = FolderFile;
 
@@ -135,6 +136,11 @@ export default function FolderDetailPage() {
       }
     }
     if (created.length > 0) setFiles((prev) => [...prev, ...created]);
+    // Pre-generate web versions now so clients never wait for the first conversion
+    for (const f of created) {
+      if (f.type !== "IMAGE") continue;
+      for (const w of [160, 320, 1600] as const) fetch(imgUrl("file", f.id, w, f.url)).catch(() => {});
+    }
     if (failedCount > 0) toast.error(`Failed to upload ${failedCount} file${failedCount > 1 ? "s" : ""}`);
     if (created.length > 0) toast.success("File(s) added");
 

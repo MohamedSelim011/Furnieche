@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getProjectAccess } from "@/lib/authz";
 import { getAttachmentInfo } from "@/lib/chat";
 import { ChatThread } from "@/components/chat/chat-thread";
+import { imgUrl } from "@/lib/img";
 
 export default async function ProjectChatPage({
   params,
@@ -45,7 +46,7 @@ export default async function ProjectChatPage({
         </Link>
         {project.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={project.coverUrl} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+          <img src={imgUrl("cover", project.id, 160, project.coverUrl)} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
         ) : (
           <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center text-brand-700 font-bold shrink-0">
             {project.name[0]?.toUpperCase()}

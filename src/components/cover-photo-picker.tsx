@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, ImagePlus, Loader2, X } from "lucide-react";
+import { Camera, Check, ImagePlus, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadCoverPhoto } from "@/lib/upload-cover";
+import { isHeic } from "@/lib/img";
 import { toast } from "sonner";
 
 /** Uploads a project cover photo to storage and reports its public URL. */
@@ -11,12 +12,15 @@ export function CoverPhotoPicker({
   value,
   onChange,
   projectId,
+  previewUrl,
   className,
 }: {
   value: string | null;
   onChange: (url: string | null) => void;
   /** Known after creation; stores the photo alongside the project's other files. */
   projectId?: string;
+  /** Web-friendly version to display (e.g. from the image service); defaults to value */
+  previewUrl?: string | null;
   className?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,8 +54,15 @@ export function CoverPhotoPicker({
       >
         {value ? (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value} alt="Project cover" className="absolute inset-0 w-full h-full object-cover" />
+            {previewUrl || !isHeic(value) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl ?? value} alt="Project cover" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-brand-50 text-brand-700">
+                <Check size={22} />
+                <span className="text-xs font-semibold">Photo added</span>
+              </span>
+            )}
             <span className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5 rounded-full bg-black/55 text-white text-xs font-semibold px-3 py-1.5 backdrop-blur">
               <Camera size={13} /> Change
             </span>

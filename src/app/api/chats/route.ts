@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 import { projectChatWhere, unreadClientCount } from "@/lib/chat";
+import { imgUrl } from "@/lib/img";
 
 // GET /api/chats — one entry per project chat, newest activity first
 export async function GET() {
@@ -33,7 +34,7 @@ export async function GET() {
         projectId: p.id,
         projectName: p.name,
         clientName: p.clientName,
-        coverUrl: p.coverUrl,
+        coverUrl: p.coverUrl ? imgUrl("cover", p.id, 160, p.coverUrl) : null,
         category: p.category,
         unread,
         lastMessage: last

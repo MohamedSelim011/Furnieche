@@ -38,6 +38,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/portal/") ||
     // Client portal APIs authenticate with the portal token, not a login
     pathname.startsWith("/api/portal/") ||
+    // Resized project photos (same exposure as the public storage URLs they come from)
+    pathname.startsWith("/api/img/") ||
     // Service-to-service callbacks; authenticated by a shared token in the route
     pathname.startsWith("/api/internal/") ||
     pathname === "/";

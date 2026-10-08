@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { imgUrl } from "@/lib/img";
 
 export type ChatContext =
   | { kind: "file"; id: string; title: string; imageUrl: string | null; url: string; folderId: string }
@@ -45,7 +46,7 @@ const messageInclude = {
     select: {
       id: true,
       title: true,
-      media: { where: { type: "IMAGE" as const }, take: 1, select: { url: true } },
+      media: { where: { type: "IMAGE" as const }, take: 1, select: { id: true, url: true } },
     },
   },
   file: { select: { id: true, name: true, url: true, type: true, folderId: true } },
@@ -62,8 +63,8 @@ function toMessage(c: CommentWithContext): ChatMessage {
       kind: "edit",
       id: e.id,
       title: e.prompt,
-      imageUrl: e.resultUrl,
-      originalUrl: e.file.url,
+      imageUrl: e.resultUrl ? imgUrl("edit", e.id, 1080, e.resultUrl) : null,
+      originalUrl: imgUrl("file", e.fileId, 640, e.file.url),
       fileId: e.fileId,
       status: e.status,
       error: e.error,
@@ -74,12 +75,13 @@ function toMessage(c: CommentWithContext): ChatMessage {
       kind: "file",
       id: c.file.id,
       title: c.file.name,
-      imageUrl: c.file.type === "IMAGE" ? c.file.url : null,
+      imageUrl: c.file.type === "IMAGE" ? imgUrl("file", c.file.id, 1080, c.file.url) : null,
       url: c.file.url,
       folderId: c.file.folderId,
     };
   } else if (c.update) {
-    context = { kind: "update", id: c.update.id, title: c.update.title, imageUrl: c.update.media[0]?.url ?? null };
+    const m = c.update.media[0];
+    context = { kind: "update", id: c.update.id, title: c.update.title, imageUrl: m ? imgUrl("media", m.id, 1080, m.url) : null };
   }
   const isTeam = c.authorId !== null;
   return {
@@ -177,14 +179,19 @@ export async function getAttachmentInfo(
       where: { id: fileId, folder: { projectId } },
       select: { id: true, name: true, url: true, type: true },
     });
-    if (file) return { kind: "file", id: file.id, title: file.name, imageUrl: file.type === "IMAGE" ? file.url : null };
+    if (file) {
+      return { kind: "file", id: file.id, title: file.name, imageUrl: file.type === "IMAGE" ? imgUrl("file", file.id, 640, file.url) : null };
+    }
   }
   if (updateId) {
     const update = await prisma.projectUpdate.findFirst({
       where: { id: updateId, projectId },
-      select: { id: true, title: true, media: { where: { type: "IMAGE" }, take: 1, select: { url: true } } },
+      select: { id: true, title: true, media: { where: { type: "IMAGE" }, take: 1, select: { id: true, url: true } } },
     });
-    if (update) return { kind: "update", id: update.id, title: update.title, imageUrl: update.media[0]?.url ?? null };
+    if (update) {
+      const m = update.media[0];
+      return { kind: "update", id: update.id, title: update.title, imageUrl: m ? imgUrl("media", m.id, 640, m.url) : null };
+    }
   }
   return null;
 }
