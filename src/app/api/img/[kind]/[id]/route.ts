@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
-import convertHeic from "heic-convert";
 import { prisma } from "@/lib/prisma";
 import { isStorageUrl } from "@/lib/storage";
 import { IMG_WIDTHS, type ImgKind } from "@/lib/img";
@@ -60,6 +59,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ kind
 
     // sharp can't decode iPhone HEIC (HEVC) — convert it to JPEG first
     if (looksLikeHeic(input)) {
+      // Loaded only when needed so ordinary photos never depend on the HEIC decoder
+      const { default: convertHeic } = await import("heic-convert");
       input = Buffer.from(await convertHeic({ buffer: input, format: "JPEG", quality: 0.92 }));
     }
 

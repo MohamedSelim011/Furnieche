@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Native/WASM image libraries must load from node_modules, not be bundled
+  serverExternalPackages: ["sharp", "heic-convert", "heic-decode", "libheif-js"],
   images: {
     remotePatterns: [
       {
