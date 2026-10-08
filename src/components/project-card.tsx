@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronRight, FileText, Folder, MoreHorizontal, Users } from "lucide-react";
+import { Camera, Check, ChevronRight, FileText, Folder, Loader2, MoreHorizontal, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { uploadCoverPhoto } from "@/lib/upload-cover";
 import { toast } from "sonner";
 
 export type ProjectStatus = "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED" | "DELAYED";
@@ -63,10 +64,36 @@ export function ProjectCard({ project: initial }: { project: ProjectCardData }) 
   const [status, setStatus] = useState(initial.status);
   const [saving, setSaving] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [coverUrl, setCoverUrl] = useState(initial.coverUrl);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const style = getStatusStyle(status);
   const statusLabel = STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
-  const cover = initial.coverUrl ?? CATEGORY_COVERS[initial.category] ?? CATEGORY_COVERS.OTHER;
+  const cover = coverUrl ?? CATEGORY_COVERS[initial.category] ?? CATEGORY_COVERS.OTHER;
+
+  async function handleCoverFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      const url = await uploadCoverPhoto(file, initial.id);
+      const res = await fetch(`/api/projects/${initial.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coverUrl: url }),
+      });
+      if (!res.ok) throw new Error("Failed to save project photo");
+      setCoverUrl(url);
+      toast.success("Project photo updated");
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update photo");
+    } finally {
+      setUploadingCover(false);
+    }
+  }
 
   async function handleStatusChange(next: ProjectStatus) {
     setMenuOpen(false);
@@ -97,12 +124,15 @@ export function ProjectCard({ project: initial }: { project: ProjectCardData }) 
       className="relative bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(28,26,23,0.06)] p-3 active:scale-[0.99] transition-transform cursor-pointer"
     >
       <div className="flex gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={cover}
-          alt=""
-          className="w-[104px] h-[84px] rounded-xl object-cover shrink-0 bg-gray-100"
-        />
+        <div className="relative w-[104px] h-[84px] shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={cover} alt="" className="w-full h-full rounded-xl object-cover bg-gray-100" />
+          {uploadingCover && (
+            <span className="absolute inset-0 rounded-xl bg-white/70 flex items-center justify-center">
+              <Loader2 size={20} className="text-brand-600 animate-spin" />
+            </span>
+          )}
+        </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
@@ -117,11 +147,12 @@ export function ProjectCard({ project: initial }: { project: ProjectCardData }) 
               )}
             </div>
 
-            {/* Status menu — stops card navigation on interact */}
+            {/* Options menu (photo + status) — stops card navigation on interact */}
             <div className="relative -mr-1 -mt-1" onClick={(e) => e.stopPropagation()}>
+              <input ref={coverInputRef} type="file" accept="image/*" onChange={handleCoverFile} className="hidden" />
               <button
                 type="button"
-                aria-label="Change status"
+                aria-label="Project options"
                 disabled={saving}
                 onClick={() => setMenuOpen((o) => !o)}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
@@ -137,6 +168,18 @@ export function ProjectCard({ project: initial }: { project: ProjectCardData }) 
                     onClick={() => setMenuOpen(false)}
                   />
                   <div className="absolute right-0 top-9 z-20 w-44 bg-white rounded-xl border border-gray-100 shadow-lg py-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        coverInputRef.current?.click();
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <Camera size={14} className="text-gray-500" />
+                      {coverUrl ? "Change photo" : "Add photo"}
+                    </button>
+                    <div className="my-1 border-t border-gray-100" />
                     <p className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                       Set status
                     </p>

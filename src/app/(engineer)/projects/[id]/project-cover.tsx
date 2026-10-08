@@ -43,5 +43,5 @@ export function ProjectCover({
     }
   }
 
-  return <CoverPhotoPicker value={value} onChange={save} className="mb-4" />;
+  return <CoverPhotoPicker value={value} onChange={save} projectId={projectId} className="mb-4" />;
 }

@@ -2,20 +2,21 @@
 
 import { useRef, useState } from "react";
 import { Camera, ImagePlus, Loader2, X } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { uploadCoverPhoto } from "@/lib/upload-cover";
 import { toast } from "sonner";
-
-const MAX_MB = 10;
 
 /** Uploads a project cover photo to storage and reports its public URL. */
 export function CoverPhotoPicker({
   value,
   onChange,
+  projectId,
   className,
 }: {
   value: string | null;
   onChange: (url: string | null) => void;
+  /** Known after creation; stores the photo alongside the project's other files. */
+  projectId?: string;
   className?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -25,26 +26,12 @@ export function CoverPhotoPicker({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Choose an image file");
-      return;
-    }
-    if (file.size > MAX_MB * 1024 * 1024) {
-      toast.error(`Photo must be under ${MAX_MB} MB`);
-      return;
-    }
 
     setUploading(true);
     try {
-      const supabase = createClient();
-      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `projects/covers/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("furniche-media").upload(path, file, { contentType: file.type });
-      if (error) throw error;
-      const { data } = supabase.storage.from("furniche-media").getPublicUrl(path);
-      onChange(data.publicUrl);
-    } catch {
-      toast.error("Failed to upload photo");
+      onChange(await uploadCoverPhoto(file, projectId));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to upload photo");
     } finally {
       setUploading(false);
     }
