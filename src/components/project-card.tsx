@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { uploadCoverPhoto } from "@/lib/upload-cover";
 import { imgUrl } from "@/lib/img";
+import { SmartImg } from "@/components/smart-img";
 import { toast } from "sonner";
 
 export type ProjectStatus = "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED" | "DELAYED";
@@ -126,8 +127,7 @@ export function ProjectCard({ project: initial }: { project: ProjectCardData }) 
     >
       <div className="flex gap-3">
         <div className="relative w-[104px] h-[84px] shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={cover} alt="" loading="lazy" decoding="async" className="w-full h-full rounded-xl object-cover bg-gray-100" />
+          <SmartImg src={cover} className="w-full h-full rounded-xl" />
           {uploadingCover && (
             <span className="absolute inset-0 rounded-xl bg-white/70 flex items-center justify-center">
               <Loader2 size={20} className="text-brand-600 animate-spin" />

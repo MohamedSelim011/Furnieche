@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PhotoViewer } from "@/components/photo-viewer";
 import { imgUrl } from "@/lib/img";
+import { SmartImg } from "@/components/smart-img";
 
 type MediaItem = { id: string; url: string; type: "IMAGE" | "VIDEO" | "DOCUMENT"; filename: string | null };
 
@@ -19,14 +20,7 @@ export function UpdateMedia({ media }: { media: MediaItem[] }) {
           <div key={m.id} className={`relative rounded-xl overflow-hidden bg-gray-100 ${single ? "h-48" : "h-32"}`}>
             {m.type === "IMAGE" ? (
               <button className="w-full h-full" onClick={() => setOpenAt(photos.findIndex((p) => p.id === m.id))}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imgUrl("media", m.id, single ? 1080 : 640, m.url)}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-cover"
-                />
+                <SmartImg src={imgUrl("media", m.id, single ? 1080 : 640, m.url)} className="w-full h-full" />
               </button>
             ) : (
               <video src={m.url} className="w-full h-full object-cover" controls preload="metadata" />

@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { imgUrl } from "@/lib/img";
 import { PhotoViewer } from "@/components/photo-viewer";
+import { SmartImg } from "@/components/smart-img";
 import { toast } from "sonner";
 
 export type FolderFile = {
@@ -221,14 +222,7 @@ function FileRow({
 
         {isImage ? (
           <button onClick={onView} className="shrink-0" aria-label="View photo">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imgUrl("file", file.id, 160, file.url)}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="w-14 h-14 rounded-xl object-cover bg-gray-100"
-            />
+            <SmartImg src={imgUrl("file", file.id, 160, file.url)} className="w-14 h-14 rounded-xl" />
           </button>
         ) : (
           <a

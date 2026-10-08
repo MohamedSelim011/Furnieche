@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, FileText, FolderOpen, MessageCircle, Sparkles, Video } from "lucide-react";
 import { PhotoViewer, type ViewerPhoto } from "@/components/photo-viewer";
+import { SmartImg } from "@/components/smart-img";
 import { imgUrl } from "@/lib/img";
 import { cn } from "@/lib/utils";
 
@@ -55,14 +56,7 @@ function FileGroup({
               onClick={() => onOpenPhoto(photos, i)}
               className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 active:scale-[0.98] transition-transform"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imgUrl("file", photo.id, 320, photo.url)}
-                alt={photo.name}
-                loading="lazy"
-                decoding="async"
-                className="w-full h-full object-cover"
-              />
+              <SmartImg src={imgUrl("file", photo.id, 320, photo.url)} className="w-full h-full" />
             </button>
           ))}
         </div>

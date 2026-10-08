@@ -7,6 +7,7 @@ import { CommentForm } from "./comment-form";
 import { ScopeSection } from "./scope-section";
 import { PortalNav } from "./portal-nav";
 import { UpdateMedia } from "./update-media";
+import { SmartImg } from "@/components/smart-img";
 import { imgUrl } from "@/lib/img";
 
 type PortalResult =
@@ -98,12 +99,7 @@ export default async function PortalPage({
       {/* Header */}
       <div className="bg-white px-4 pt-10 pb-4 border-b border-gray-100">
         {project.coverUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imgUrl("cover", project.id, 1080, project.coverUrl)}
-            alt=""
-            className="w-full h-44 rounded-2xl object-cover mb-4 bg-gray-100"
-          />
+          <SmartImg src={imgUrl("cover", project.id, 1080, project.coverUrl)} loading="eager" className="w-full h-44 rounded-2xl mb-4" />
         )}
         <div className="flex items-start justify-between">
           <div>
