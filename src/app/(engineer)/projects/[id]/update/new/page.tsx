@@ -151,7 +151,7 @@ export default function NewUpdatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-white max-w-md mx-auto">
+    <div className="min-h-screen max-w-md mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-12 pb-4 border-b border-gray-100">
         <button onClick={() => router.back()} className="text-sm text-gray-500 font-medium">

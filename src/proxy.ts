@@ -36,6 +36,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/portal/") ||
+    // Service-to-service callbacks; authenticated by a shared token in the route
+    pathname.startsWith("/api/internal/") ||
     pathname === "/";
 
   if (!user && !isPublic) {

@@ -58,7 +58,7 @@ export default async function ClientWalletPage({
   const isOwed = balance > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 max-w-md mx-auto pb-24">
+    <div className="min-h-screen max-w-md mx-auto pb-24">
       <PortalNav token={token} linkType="OWNER" />
 
       {/* Header */}

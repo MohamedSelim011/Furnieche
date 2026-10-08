@@ -2,25 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, ChevronRight } from "lucide-react";
+import { Check, ChevronRight, FileText, Folder, MoreHorizontal, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatRelativeTime } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-type ProjectStatus = "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED" | "DELAYED";
+export type ProjectStatus = "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED" | "DELAYED";
 
-type Project = {
+export type ProjectCardData = {
   id: string;
   name: string;
   clientName: string;
   status: string;
   category: string;
   updatedAt: Date;
-  folders: { progressPercent: number }[];
-  _count: { updates: number };
+  coverUrl: string | null;
+  folderCount: number;
+  fileCount: number;
+  memberCount: number;
+  progress: number;
 };
 
-const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
+export const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
   { value: "ACTIVE", label: "In Progress" },
   { value: "ON_HOLD", label: "On Hold" },
   { value: "DELAYED", label: "Delayed" },
@@ -28,14 +31,21 @@ const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
   { value: "ARCHIVED", label: "Archived" },
 ];
 
-function getStatusDropdownClass(status: string) {
+// Stock photos shown until a project has its own update photos.
+const CATEGORY_COVERS: Record<string, string> = {
+  RESIDENTIAL: "/images/residential.jpg",
+  COMMERCIAL: "/images/commercial.jpg",
+  HOSPITALITY: "/images/hospitality.jpg",
+  OTHER: "/images/interior.jpg",
+};
+
+function getStatusStyle(status: string) {
   switch (status) {
-    case "ACTIVE":     return "bg-blue-50 text-brand-700 border-blue-200";
-    case "ON_HOLD":    return "bg-amber-50 text-amber-700 border-amber-200";
-    case "COMPLETED":  return "bg-green-50 text-green-700 border-green-200";
-    case "DELAYED":    return "bg-red-50 text-red-700 border-red-200";
-    case "ARCHIVED":   return "bg-gray-100 text-gray-500 border-gray-200";
-    default:           return "bg-gray-50 text-gray-500 border-gray-200";
+    case "ACTIVE":    return { bar: "bg-brand-500", pill: "bg-brand-50 text-brand-700" };
+    case "ON_HOLD":   return { bar: "bg-amber-400", pill: "bg-amber-50 text-amber-700" };
+    case "COMPLETED": return { bar: "bg-green-400", pill: "bg-green-50 text-green-700" };
+    case "DELAYED":   return { bar: "bg-red-400",   pill: "bg-red-50 text-red-700" };
+    default:          return { bar: "bg-gray-300",  pill: "bg-gray-100 text-gray-500" };
   }
 }
 
@@ -48,18 +58,18 @@ function getCategoryVariant(category: string) {
   }
 }
 
-export function ProjectCard({ project: initial }: { project: Project }) {
+export function ProjectCard({ project: initial }: { project: ProjectCardData }) {
   const router = useRouter();
   const [status, setStatus] = useState(initial.status);
   const [saving, setSaving] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const totalFolders = initial.folders.length;
-  const progress =
-    totalFolders > 0
-      ? Math.round(initial.folders.reduce((sum, f) => sum + f.progressPercent, 0) / totalFolders)
-      : 0;
+  const style = getStatusStyle(status);
+  const statusLabel = STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
+  const cover = initial.coverUrl ?? CATEGORY_COVERS[initial.category] ?? CATEGORY_COVERS.OTHER;
 
   async function handleStatusChange(next: ProjectStatus) {
+    setMenuOpen(false);
     if (next === status) return;
     setSaving(true);
     const prev = status;
@@ -84,53 +94,104 @@ export function ProjectCard({ project: initial }: { project: Project }) {
   return (
     <div
       onClick={() => router.push(`/projects/${initial.id}`)}
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 active:scale-[0.99] transition-transform cursor-pointer"
+      className="relative bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(28,26,23,0.06)] p-3 active:scale-[0.99] transition-transform cursor-pointer"
     >
-      <div className="flex items-start justify-between mb-2">
-        <Badge variant={getCategoryVariant(initial.category) as "residential" | "commercial" | "hospitality" | "other"}>
-          {initial.category}
-        </Badge>
+      <div className="flex gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={cover}
+          alt=""
+          className="w-[104px] h-[84px] rounded-xl object-cover shrink-0 bg-gray-100"
+        />
 
-        {/* Status dropdown — stops card navigation on interact */}
-        <div onClick={(e) => e.stopPropagation()}>
-          <select
-            value={status}
-            disabled={saving}
-            onChange={(e) => handleStatusChange(e.target.value as ProjectStatus)}
-            className={`text-xs font-semibold rounded-lg px-2 py-1 border focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer ${getStatusDropdownClass(status)}`}
-          >
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant={getCategoryVariant(initial.category) as "residential" | "commercial" | "hospitality" | "other"}>
+                {initial.category}
+              </Badge>
+              {status !== "ACTIVE" && (
+                <span className={cn("text-[10px] font-semibold rounded-full px-2 py-0.5", style.pill)}>
+                  {statusLabel}
+                </span>
+              )}
+            </div>
+
+            {/* Status menu — stops card navigation on interact */}
+            <div className="relative -mr-1 -mt-1" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                aria-label="Change status"
+                disabled={saving}
+                onClick={() => setMenuOpen((o) => !o)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+              >
+                <MoreHorizontal size={18} />
+              </button>
+              {menuOpen && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Close menu"
+                    className="fixed inset-0 z-10 cursor-default"
+                    onClick={() => setMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-9 z-20 w-44 bg-white rounded-xl border border-gray-100 shadow-lg py-1">
+                    <p className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                      Set status
+                    </p>
+                    {STATUS_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => handleStatusChange(opt.value)}
+                        className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className={cn("w-2 h-2 rounded-full", getStatusStyle(opt.value).bar)} />
+                          {opt.label}
+                        </span>
+                        {opt.value === status && <Check size={14} className="text-brand-600" />}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <h3 className="font-bold text-gray-900 text-base mt-1.5 truncate">{initial.name}</h3>
+          <p className="text-sm text-gray-500 truncate">Client: {initial.clientName}</p>
+
+          <div className="mt-2 flex items-center gap-3">
+            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className={cn("h-full rounded-full transition-all", style.bar)}
+                style={{ width: `${initial.progress}%` }}
+              />
+            </div>
+            <span className="text-xs font-medium text-gray-600 w-8 text-right">{initial.progress}%</span>
+          </div>
         </div>
       </div>
 
-      <h3 className="font-bold text-gray-900 text-base mt-2">{initial.name}</h3>
-      <p className="text-sm text-gray-500">Client: {initial.clientName}</p>
-
-      {totalFolders > 0 && (
-        <div className="mt-3">
-          <div className="flex justify-between text-xs text-gray-400 mb-1">
-            <span>{totalFolders} folder{totalFolders > 1 ? "s" : ""}</span>
-            <span>{progress}%</span>
-          </div>
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-brand-600 rounded-full transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-100">
+        <div className="flex items-center gap-4 text-xs text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <Folder size={14} className="text-gray-400" />
+            {initial.folderCount} folder{initial.folderCount === 1 ? "" : "s"}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <FileText size={14} className="text-gray-400" />
+            {initial.fileCount} file{initial.fileCount === 1 ? "" : "s"}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Users size={14} className="text-gray-400" />
+            {initial.memberCount} member{initial.memberCount === 1 ? "" : "s"}
+          </span>
         </div>
-      )}
-
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <Clock size={12} />
-          <span>{formatRelativeTime(initial.updatedAt)}</span>
-        </div>
-        <div className="w-7 h-7 bg-gray-50 rounded-full flex items-center justify-center">
-          <ChevronRight size={14} className="text-gray-400" />
+        <div className="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center">
+          <ChevronRight size={15} className="text-gray-500" />
         </div>
       </div>
     </div>

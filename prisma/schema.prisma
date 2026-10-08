@@ -60,16 +60,16 @@ enum PaymentStatus {
 // ─── User ─────────────────────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  avatarUrl String?
-  role      UserRole @default(ENGINEER)
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id])
-  createdAt                  DateTime  @default(now())
-  updatedAt                  DateTime  @updatedAt
-  lastNotificationsReadAt    DateTime?
+  id                      String    @id @default(uuid())
+  email                   String    @unique
+  name                    String?
+  avatarUrl               String?
+  role                    UserRole  @default(ENGINEER)
+  companyId               String?
+  company                 Company?  @relation(fields: [companyId], references: [id])
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  lastNotificationsReadAt DateTime?
 
   projects       Project[]
   comments       Comment[]
@@ -130,19 +130,20 @@ model Project {
   budget           Float?
 
   engineerId String
-  engineer   User    @relation(fields: [engineerId], references: [id])
+  engineer   User     @relation(fields: [engineerId], references: [id])
   companyId  String?
   company    Company? @relation(fields: [companyId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  folders      ProjectFolder[]
-  updates      ProjectUpdate[]
-  accessTokens AccessToken[]
-  auditLogs    AuditLog[]
-  payments     Payment[]
-  members      ProjectMember[]
+  folders          ProjectFolder[]
+  updates          ProjectUpdate[]
+  accessTokens     AccessToken[]
+  auditLogs        AuditLog[]
+  payments         Payment[]
+  members          ProjectMember[]
+  contractAnalyses ContractAnalysis[]
 
   @@map("projects")
 }
@@ -229,18 +230,19 @@ model ProjectFolder {
 // ─── Project Files (documents/photos inside a folder) ───────────────────────
 
 model ProjectFile {
-  id              String        @id @default(uuid())
-  folderId        String
-  folder          ProjectFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  name            String
-  url             String
-  type            MediaType     @default(DOCUMENT)
-  sizeBytes       Int?
-  progressPercent Int           @default(0)
-  uploadedById    String?
-  uploadedBy      User?         @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id               String             @id @default(uuid())
+  folderId         String
+  folder           ProjectFolder      @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  name             String
+  url              String
+  type             MediaType          @default(DOCUMENT)
+  sizeBytes        Int?
+  progressPercent  Int                @default(0)
+  uploadedById     String?
+  uploadedBy       User?              @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  contractAnalyses ContractAnalysis[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   @@map("project_files")
 }
@@ -248,18 +250,18 @@ model ProjectFile {
 // ─── Project Updates ──────────────────────────────────────────────────────────
 
 model ProjectUpdate {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
   projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   folderId    String?
   folder      ProjectFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   title       String
   description String?
   location    String?
   category    String?
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isPublished Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   media    Media[]
   comments Comment[]
@@ -319,6 +321,36 @@ model AccessToken {
 }
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
+
+enum ContractAnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// AI analysis of a contract file, produced by the contract-service (Python).
+model ContractAnalysis {
+  id                String                 @id @default(uuid())
+  projectId         String
+  project           Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fileId            String
+  file              ProjectFile            @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  status            ContractAnalysisStatus @default(PENDING)
+  result            Json?
+  error             String?
+  model             String?
+  requestedById     String?
+  // Set when the engineer applies extracted dates/budget, and separately when
+  // payment requests are created, so payments can't be created twice.
+  appliedAt         DateTime?
+  paymentsCreatedAt DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([fileId])
+  @@map("contract_analyses")
+}
 
 model AuditLog {
   id        String   @id @default(uuid())

@@ -66,7 +66,7 @@ function getStatusBadge(status: string) {
     case "DELAYED":   return { label: "Delayed",   cls: "bg-red-50 text-red-700" };
     case "ON_HOLD":   return { label: "On Hold",   cls: "bg-amber-50 text-amber-700" };
     case "ARCHIVED":  return { label: "Archived",  cls: "bg-gray-100 text-gray-500" };
-    default:          return { label: "In Progress", cls: "bg-green-50 text-green-700" };
+    default:          return { label: "In Progress", cls: "bg-brand-50 text-brand-700" };
   }
 }
 
@@ -91,7 +91,7 @@ export default async function PortalPage({
   const statusBadge = getStatusBadge(project.status);
 
   return (
-    <div className="min-h-screen bg-gray-50 max-w-md mx-auto pb-24">
+    <div className="min-h-screen max-w-md mx-auto pb-24">
       <PortalNav token={token} linkType={result.data.type} />
       {/* Header */}
       <div className="bg-white px-4 pt-10 pb-4 border-b border-gray-100">
@@ -267,7 +267,7 @@ export default async function PortalPage({
 
 function ExpiredLinkState() {
   return (
-    <div className="min-h-screen bg-gray-50 max-w-md mx-auto flex flex-col items-center justify-center px-6 text-center">
+    <div className="min-h-screen max-w-md mx-auto flex flex-col items-center justify-center px-6 text-center">
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 w-full">
         <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
           <Lock size={28} className="text-amber-500" />

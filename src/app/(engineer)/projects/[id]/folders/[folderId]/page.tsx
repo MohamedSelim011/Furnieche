@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Loader2, Trash2, FileText, Image as ImageIcon, Video,
-  FolderOpen, FolderPlus, ChevronRight,
+  FolderOpen, FolderPlus, ChevronRight, Sparkles,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -54,6 +54,10 @@ export default function FolderDetailPage() {
   const [addingSubfolder, setAddingSubfolder] = useState(false);
   const [newSubfolderName, setNewSubfolderName] = useState("");
   const [creatingSubfolder, setCreatingSubfolder] = useState(false);
+  // Inline delete confirmation (window.confirm is silently blocked in some
+  // mobile/in-app browsers, which made deleting impossible there)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const progressSources = [...subfolders.map((s) => s.progressPercent), ...files.map((f) => f.progressPercent)];
   const progress =
@@ -171,40 +175,74 @@ export default function FolderDetailPage() {
     }
   }
 
+  async function errorMessage(res: Response, fallback: string) {
+    const data = await res.json().catch(() => null);
+    if (res.status === 404) return "You don't have permission to delete this, or it no longer exists";
+    return data?.error ?? fallback;
+  }
+
   async function deleteFile(fileId: string) {
-    if (!confirm("Delete this file?")) return;
+    setDeleting(fileId);
     try {
       const res = await fetch(`/api/projects/${id}/folders/${folderId}/files/${fileId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(await errorMessage(res, "Failed to delete file"));
       setFiles((prev) => prev.filter((f) => f.id !== fileId));
       toast.success("File removed");
-    } catch {
-      toast.error("Failed to delete file");
+    } catch (err) {
+      toast.error(err instanceof Error && err.message ? err.message : "Failed to delete file");
+    } finally {
+      setDeleting(null);
+      setConfirmDelete(null);
     }
   }
 
   async function deleteSubfolder(subId: string) {
-    if (!confirm("Delete this subfolder and everything inside it?")) return;
+    setDeleting(subId);
     try {
       const res = await fetch(`/api/projects/${id}/folders/${subId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(await errorMessage(res, "Failed to delete subfolder"));
       setSubfolders((prev) => prev.filter((s) => s.id !== subId));
       toast.success("Subfolder removed");
-    } catch {
-      toast.error("Failed to delete subfolder");
+    } catch (err) {
+      toast.error(err instanceof Error && err.message ? err.message : "Failed to delete subfolder");
+    } finally {
+      setDeleting(null);
+      setConfirmDelete(null);
     }
+  }
+
+  function deleteConfirm(targetId: string, label: string, onConfirm: () => void) {
+    return (
+      <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-red-50 border border-red-100 px-3 py-2">
+        <p className="flex-1 text-xs font-medium text-red-700">{label}</p>
+        <button
+          onClick={() => setConfirmDelete(null)}
+          disabled={deleting === targetId}
+          className="text-xs font-semibold text-gray-600 px-2.5 py-1.5 rounded-lg hover:bg-white"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onConfirm}
+          disabled={deleting === targetId}
+          className="text-xs font-semibold text-white bg-red-500 px-3 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-60"
+        >
+          {deleting === targetId && <Loader2 size={12} className="animate-spin" />} Delete
+        </button>
+      </div>
+    );
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white max-w-md mx-auto flex items-center justify-center">
+      <div className="min-h-screen max-w-md mx-auto flex items-center justify-center">
         <Loader2 size={28} className="text-brand-600 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 max-w-md mx-auto pb-8">
+    <div className="min-h-screen max-w-md mx-auto pb-8">
       <div className="bg-white px-4 pt-12 pb-4 border-b border-gray-100">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => router.back()} className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center">
@@ -231,7 +269,8 @@ export default function FolderDetailPage() {
         {subfolders.length > 0 && (
           <div className="space-y-2 mb-1">
             {subfolders.map((sub) => (
-              <div key={sub.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex items-center gap-3">
+              <div key={sub.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
+              <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
                   <FolderOpen size={16} className="text-brand-600" />
                 </div>
@@ -245,12 +284,19 @@ export default function FolderDetailPage() {
                     {sub._count.files} file{sub._count.files === 1 ? "" : "s"} · {sub.progressPercent}%
                   </p>
                 </button>
-                <button onClick={() => deleteSubfolder(sub.id)} className="shrink-0">
-                  <Trash2 size={14} className="text-red-400" />
+                <button
+                  onClick={() => setConfirmDelete(sub.id)}
+                  aria-label="Delete subfolder"
+                  className="shrink-0 w-9 h-9 -my-1 rounded-full flex items-center justify-center hover:bg-red-50"
+                >
+                  <Trash2 size={16} className="text-red-400" />
                 </button>
                 <button onClick={() => router.push(`/projects/${id}/folders/${sub.id}`)} className="shrink-0">
                   <ChevronRight size={14} className="text-gray-300" />
                 </button>
+              </div>
+              {confirmDelete === sub.id &&
+                deleteConfirm(sub.id, "Delete this subfolder and everything inside it?", () => deleteSubfolder(sub.id))}
               </div>
             ))}
           </div>
@@ -295,13 +341,26 @@ export default function FolderDetailPage() {
                   {file.name}
                 </a>
               </div>
+              {file.type !== "VIDEO" && (
+                <button
+                  onClick={() => router.push(`/projects/${id}/files/${file.id}/analysis`)}
+                  className="shrink-0 flex items-center gap-1 rounded-full bg-oak-50 text-oak-700 border border-oak-100 px-2 py-1 text-[11px] font-semibold hover:bg-oak-100"
+                >
+                  <Sparkles size={12} /> Analyze
+                </button>
+              )}
               <span className="text-xs font-semibold text-gray-400 shrink-0">
                 {saving === file.id ? <Loader2 size={12} className="animate-spin" /> : `${file.progressPercent}%`}
               </span>
-              <button onClick={() => deleteFile(file.id)} className="shrink-0">
-                <Trash2 size={14} className="text-red-400" />
+              <button
+                onClick={() => setConfirmDelete(file.id)}
+                aria-label="Delete file"
+                className="shrink-0 w-9 h-9 -my-1 -mr-1 rounded-full flex items-center justify-center hover:bg-red-50"
+              >
+                <Trash2 size={16} className="text-red-400" />
               </button>
             </div>
+            {confirmDelete === file.id && deleteConfirm(file.id, "Delete this file?", () => deleteFile(file.id))}
             <input
               type="range"
               min={0}

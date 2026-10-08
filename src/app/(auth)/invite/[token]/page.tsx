@@ -50,7 +50,7 @@ export default function InvitePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col items-center justify-center px-6 py-12">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-sm bg-white rounded-3xl shadow-md p-6 text-center">
         {loading ? (
           <Loader2 size={28} className="text-brand-600 animate-spin mx-auto my-8" />

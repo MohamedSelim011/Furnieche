@@ -12,7 +12,7 @@ const PLAN_CTA: Record<PlanKey, string> = {
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen">
       {/* Nav */}
       <header className="flex items-center justify-between px-6 py-4 max-w-2xl mx-auto">
         <Link href="/" className="flex items-center gap-2">

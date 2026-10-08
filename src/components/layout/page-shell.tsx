@@ -10,8 +10,8 @@ export function PageShell({ children, className, withBottomNav = true }: PageShe
   return (
     <div
       className={cn(
-        "min-h-screen bg-gray-50 max-w-md mx-auto",
-        withBottomNav && "pb-20",
+        "min-h-screen max-w-md mx-auto",
+        withBottomNav && "pb-28",
         className
       )}
     >

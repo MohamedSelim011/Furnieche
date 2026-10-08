@@ -1,37 +1,75 @@
 import Link from "next/link";
-import { Plus, Bell, Clock, FolderOpen, Activity, AlertTriangle, CheckCircle2, MessageSquare } from "lucide-react";
+import {
+  Plus,
+  Bell,
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  CheckCircle2,
+  Clock,
+  FolderOpen,
+  MessageSquare,
+} from "lucide-react";
 import { PageShell } from "@/components/layout/page-shell";
+import { StatCard } from "@/components/stat-card";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
-import { formatRelativeTime, getInitials } from "@/lib/utils";
+import { getInitials } from "@/lib/utils";
 import { redirect } from "next/navigation";
-import { ProjectCard } from "@/components/project-card";
+import { ProjectList } from "@/components/project-list";
+import type { ProjectCardData } from "@/components/project-card";
 
 const ACTIVE_STATUSES = ["ACTIVE", "ON_HOLD"];
 
-async function getProjects(userId: string) {
+async function getProjects(userId: string): Promise<ProjectCardData[]> {
   const projects = await prisma.project.findMany({
     where: {
       status: { not: "ARCHIVED" },
       OR: [{ engineerId: userId }, { members: { some: { userId } } }],
     },
     include: {
-      folders: { select: { progressPercent: true } },
-      _count: { select: { updates: true } },
+      folders: {
+        select: { progressPercent: true, parentId: true, _count: { select: { files: true } } },
+      },
+      // Latest update photo doubles as the card thumbnail
+      updates: {
+        where: { media: { some: { type: "IMAGE" } } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { media: { where: { type: "IMAGE" }, take: 1, select: { url: true } } },
+      },
+      _count: { select: { members: true } },
     },
     orderBy: { updatedAt: "desc" },
   });
 
   // Completed projects sink to the bottom, active/on-hold stay on top
-  return projects.sort((a, b) => {
+  projects.sort((a, b) => {
     const aActive = ACTIVE_STATUSES.includes(a.status);
     const bActive = ACTIVE_STATUSES.includes(b.status);
     if (aActive && !bActive) return -1;
     if (!aActive && bActive) return 1;
     return 0;
   });
+
+  return projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    clientName: p.clientName,
+    status: p.status,
+    category: p.category,
+    updatedAt: p.updatedAt,
+    coverUrl: p.updates[0]?.media[0]?.url ?? null,
+    folderCount: p.folders.filter((f) => f.parentId === null).length,
+    fileCount: p.folders.reduce((sum, f) => sum + f._count.files, 0),
+    memberCount: p._count.members,
+    progress:
+      p.folders.length > 0
+        ? Math.round(p.folders.reduce((sum, f) => sum + f.progressPercent, 0) / p.folders.length)
+        : 0,
+  }));
 }
 
 async function getDashboardStats(userId: string, lastReadAt: Date | null) {
@@ -90,83 +128,68 @@ export default async function DashboardPage() {
     getDashboardStats(user.id, lastReadAt).catch(() => ({ active: 0, delayed: 0, completed: 0, pendingComments: 0 })),
   ]);
 
-  const lastUpdated = projects[0]?.updatedAt ?? null;
-
   return (
     <PageShell>
-      {/* Header */}
-      <div className="px-4 pt-12 pb-2 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Projects</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage your active documentation</p>
+      <div className="relative">
+        {/* Top bar */}
+        <div className="relative px-4 pt-10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="" className="w-9 h-9 rounded-lg" />
+            <span className="text-xl font-bold text-brand-800 tracking-tight">Furniche</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/notifications"
+              aria-label={stats.pendingComments > 0 ? `Notifications (${stats.pendingComments} new)` : "Notifications"}
+              className="relative w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/70"
+            >
+              <Bell size={21} className="text-gray-700" />
+              {stats.pendingComments > 0 && (
+                <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-gray-50" />
+              )}
+            </Link>
+            <Link
+              href="/settings"
+              className="w-10 h-10 bg-oak-500 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm"
+            >
+              {getInitials(user.email?.split("@")[0] ?? "U")}
+            </Link>
+          </div>
         </div>
-        <div className="flex items-center gap-2 mt-1">
-          <Link href="/notifications" className="relative w-10 h-10 bg-white rounded-full border border-gray-100 shadow-sm flex items-center justify-center">
-            <Bell size={18} className="text-gray-600" />
-            {stats.pendingComments > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-bold">
-                {stats.pendingComments > 9 ? "9+" : stats.pendingComments}
-              </span>
-            )}
-          </Link>
-          <Link href="/settings" className="w-10 h-10 bg-orange-300 rounded-full flex items-center justify-center text-white text-xs font-bold">
-            {getInitials(user.email?.split("@")[0] ?? "U")}
-          </Link>
+
+        {/* Title */}
+        <div className="relative px-4 pt-8">
+          <h1 className="text-[28px] leading-tight font-bold text-brand-800">My Projects</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage your active documentation</p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="relative px-4 pt-6 grid grid-cols-2 gap-3">
+          <StatCard icon={FolderOpen} hint={Activity} label="Active" value={stats.active} caption="projects in progress" tone="brand" />
+          <StatCard
+            icon={Clock}
+            hint={AlertTriangle}
+            label="Delayed"
+            value={stats.delayed}
+            caption="past deadline"
+            tone={stats.delayed > 0 ? "danger" : "oak"}
+          />
+          <StatCard icon={CheckCircle2} hint={BarChart3} label="Completed" value={stats.completed} caption="projects handed over" tone="success" />
+          <StatCard
+            icon={MessageSquare}
+            hint={BarChart3}
+            label="Comments"
+            value={stats.pendingComments}
+            caption="client replies (7d)"
+            tone={stats.pendingComments > 0 ? "warning" : "neutral"}
+          />
         </div>
       </div>
-
-      {/* Stats Cards */}
-      <div className="px-4 pt-4 grid grid-cols-2 gap-3">
-        <div className="bg-blue-50 rounded-2xl p-4 flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-brand-600 uppercase tracking-wide">Active</span>
-            <Activity size={16} className="text-brand-600" />
-          </div>
-          <p className="text-3xl font-bold text-brand-700">{stats.active}</p>
-          <p className="text-xs text-brand-500">projects in progress</p>
-        </div>
-
-        <div className={`rounded-2xl p-4 flex flex-col gap-1 ${stats.delayed > 0 ? "bg-red-50" : "bg-gray-50"}`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-semibold uppercase tracking-wide ${stats.delayed > 0 ? "text-red-600" : "text-gray-500"}`}>Delayed</span>
-            <AlertTriangle size={16} className={stats.delayed > 0 ? "text-red-500" : "text-gray-400"} />
-          </div>
-          <p className={`text-3xl font-bold ${stats.delayed > 0 ? "text-red-700" : "text-gray-700"}`}>{stats.delayed}</p>
-          <p className={`text-xs ${stats.delayed > 0 ? "text-red-400" : "text-gray-400"}`}>past deadline</p>
-        </div>
-
-        <div className="bg-green-50 rounded-2xl p-4 flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-green-600 uppercase tracking-wide">Completed</span>
-            <CheckCircle2 size={16} className="text-green-600" />
-          </div>
-          <p className="text-3xl font-bold text-green-700">{stats.completed}</p>
-          <p className="text-xs text-green-500">projects handed over</p>
-        </div>
-
-        <div className={`rounded-2xl p-4 flex flex-col gap-1 ${stats.pendingComments > 0 ? "bg-amber-50" : "bg-gray-50"}`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-semibold uppercase tracking-wide ${stats.pendingComments > 0 ? "text-amber-600" : "text-gray-500"}`}>Comments</span>
-            <MessageSquare size={16} className={stats.pendingComments > 0 ? "text-amber-500" : "text-gray-400"} />
-          </div>
-          <p className={`text-3xl font-bold ${stats.pendingComments > 0 ? "text-amber-700" : "text-gray-700"}`}>{stats.pendingComments}</p>
-          <p className={`text-xs ${stats.pendingComments > 0 ? "text-amber-500" : "text-gray-400"}`}>client replies (7d)</p>
-        </div>
-      </div>
-
-      {/* Last Updated */}
-      {lastUpdated && (
-        <div className="px-4 pt-3">
-          <p className="text-xs text-gray-400 flex items-center gap-1">
-            <Clock size={11} />
-            Last activity: {formatRelativeTime(lastUpdated)}
-          </p>
-        </div>
-      )}
 
       {/* Create Project Button */}
-      <div className="px-4 pt-4 pb-2">
-        <Button asChild fullWidth size="lg">
+      <div className="px-4 pt-5">
+        <Button asChild fullWidth size="lg" className="shadow-md shadow-brand-900/15">
           <Link href="/projects/new">
             <Plus size={20} />
             Create Project
@@ -174,31 +197,7 @@ export default async function DashboardPage() {
         </Button>
       </div>
 
-      {/* Projects List */}
-      <div className="px-4 pt-2 space-y-3">
-        {projects.length === 0 ? (
-          <EmptyState />
-        ) : (
-          projects.map((project) => (
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            <ProjectCard key={project.id} project={project as any} />
-          ))
-        )}
-      </div>
+      <ProjectList projects={projects} />
     </PageShell>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-        <FolderOpen size={36} className="text-gray-300" />
-      </div>
-      <h3 className="font-bold text-gray-900 mb-2">No projects yet</h3>
-      <p className="text-sm text-gray-500 max-w-[220px]">
-        You haven&apos;t documented any projects yet. Start now to reduce client disputes and keep progress on track.
-      </p>
-    </div>
   );
 }

@@ -121,14 +121,14 @@ export default function FoldersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white max-w-md mx-auto flex items-center justify-center">
+      <div className="min-h-screen max-w-md mx-auto flex items-center justify-center">
         <Loader2 size={28} className="text-brand-600 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 max-w-md mx-auto pb-8">
+    <div className="min-h-screen max-w-md mx-auto pb-8">
       {/* Header */}
       <div className="bg-white px-4 pt-12 pb-4 border-b border-gray-100">
         <div className="flex items-center gap-3 mb-4">

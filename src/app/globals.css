@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,25 +6,26 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 222.2 84% 4.9%;
+    /* Atelier Navy — keep in sync with tailwind.config.ts */
+    --background: 36 33% 97%;          /* #faf8f5 linen */
+    --foreground: 40 10% 10%;          /* #1c1a17 ink */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 40 10% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --popover-foreground: 40 10% 10%;
+    --primary: 220 57% 29%;            /* #1f3a73 navy */
+    --primary-foreground: 36 33% 97%;
+    --secondary: 37 26% 94%;           /* #f3f0eb */
+    --secondary-foreground: 40 10% 10%;
+    --muted: 37 26% 94%;
+    --muted-foreground: 35 9% 42%;     /* #746c61 */
+    --accent: 31 47% 49%;              /* #b97f42 oak */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 11 51% 50%;         /* #c0563d terracotta */
+    --destructive-foreground: 0 0% 100%;
+    --border: 37 21% 88%;              /* #e6e1d9 */
+    --input: 37 21% 88%;
+    --ring: 220 57% 29%;
     --radius: 0.75rem;
   }
 }
@@ -34,7 +35,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans md:bg-[#e9e3d9];
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
