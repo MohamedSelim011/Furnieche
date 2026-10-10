@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { uploadCoverPhoto } from "@/lib/upload-cover";
 import { imgUrl } from "@/lib/img";
 import { SmartImg } from "@/components/smart-img";
+import { categoryLabel } from "@/lib/constants";
 import { toast } from "sonner";
 
 export type ProjectStatus = "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED" | "DELAYED";
@@ -18,6 +19,7 @@ export type ProjectCardData = {
   clientName: string;
   status: string;
   category: string;
+  categoryOther: string | null;
   updatedAt: Date;
   coverUrl: string | null;
   folderCount: number;
@@ -39,6 +41,7 @@ const CATEGORY_COVERS: Record<string, string> = {
   RESIDENTIAL: "/images/residential.jpg",
   COMMERCIAL: "/images/commercial.jpg",
   HOSPITALITY: "/images/hospitality.jpg",
+  INDUSTRIAL: "/images/industrial.jpg",
   OTHER: "/images/interior.jpg",
 };
 
@@ -57,6 +60,7 @@ function getCategoryVariant(category: string) {
     case "RESIDENTIAL": return "residential";
     case "COMMERCIAL":  return "commercial";
     case "HOSPITALITY": return "hospitality";
+    case "INDUSTRIAL":  return "industrial";
     default:            return "other";
   }
 }
@@ -138,8 +142,8 @@ export function ProjectCard({ project: initial }: { project: ProjectCardData }) 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant={getCategoryVariant(initial.category) as "residential" | "commercial" | "hospitality" | "other"}>
-                {initial.category}
+              <Badge variant={getCategoryVariant(initial.category) as "residential" | "commercial" | "hospitality" | "industrial" | "other"}>
+                {categoryLabel(initial.category, initial.categoryOther)}
               </Badge>
               {status !== "ACTIVE" && (
                 <span className={cn("text-[10px] font-semibold rounded-full px-2 py-0.5", style.pill)}>

@@ -29,6 +29,8 @@ export default function FoldersPage() {
   const [saving, setSaving] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [addingFolder, setAddingFolder] = useState(false);
+  // Inline confirm — window.confirm is silently blocked in some mobile browsers
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
@@ -68,7 +70,7 @@ export default function FoldersPage() {
   }
 
   async function deleteFolder(folderId: string) {
-    if (!confirm("Delete this folder and all its files?")) return;
+    setConfirmDeleteId(null);
     setSaving(true);
     try {
       const res = await fetch(`/api/projects/${id}/folders/${folderId}`, { method: "DELETE" });
@@ -128,7 +130,7 @@ export default function FoldersPage() {
   }
 
   return (
-    <div className="min-h-screen max-w-md mx-auto pb-8">
+    <div className="min-h-screen max-w-md mx-auto pb-28">
       {/* Header */}
       <div className="bg-white px-4 pt-12 pb-4 border-b border-gray-100">
         <div className="flex items-center gap-3 mb-4">
@@ -148,6 +150,30 @@ export default function FoldersPage() {
           </div>
           <Progress value={progress} />
         </div>
+      </div>
+
+      {/* Add folder stays pinned at the top */}
+      <div className="sticky top-0 z-20 px-4 py-3 bg-[#f8f5f0]/90 backdrop-blur border-b border-gray-100">
+        {addingFolder ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-2 flex gap-2">
+            <Input
+              placeholder="Folder name..."
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addFolder()}
+              autoFocus
+              className="h-10 text-sm flex-1"
+            />
+            <Button size="sm" className="h-10" onClick={addFolder} disabled={saving || !newFolderName.trim()}>Add</Button>
+            <button onClick={() => { setAddingFolder(false); setNewFolderName(""); }} className="text-xs text-gray-400 px-1">
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <Button fullWidth className="h-11" onClick={() => setAddingFolder(true)}>
+            <Plus size={16} /> Add folder
+          </Button>
+        )}
       </div>
 
       {/* Folders List */}
@@ -199,10 +225,11 @@ export default function FoldersPage() {
                     <Pencil size={13} className="text-gray-400" />
                   </button>
                   <button
-                    onClick={() => deleteFolder(folder.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50"
+                    onClick={() => setConfirmDeleteId(folder.id)}
+                    aria-label="Delete folder"
+                    className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-red-50"
                   >
-                    <Trash2 size={13} className="text-red-400" />
+                    <Trash2 size={15} className="text-red-400" />
                   </button>
                   <button
                     onClick={() => router.push(`/projects/${id}/folders/${folder.id}`)}
@@ -213,6 +240,21 @@ export default function FoldersPage() {
                 </div>
               )}
             </div>
+            {confirmDeleteId === folder.id && (
+              <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-red-50 border border-red-100 px-3 py-2">
+                <p className="flex-1 text-xs font-medium text-red-700">Delete this folder and all its files?</p>
+                <button onClick={() => setConfirmDeleteId(null)} className="text-xs font-semibold text-gray-600 px-2.5 py-1.5 rounded-lg hover:bg-white">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deleteFolder(folder.id)}
+                  disabled={saving}
+                  className="text-xs font-semibold text-white bg-red-500 px-3 py-1.5 rounded-lg disabled:opacity-60"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
             {editingId !== folder.id && (
               <>
                 <input
@@ -236,30 +278,6 @@ export default function FoldersPage() {
           </div>
         ))}
 
-        {/* Add Folder */}
-        {addingFolder ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex gap-2">
-            <Input
-              placeholder="Folder name..."
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addFolder()}
-              autoFocus
-              className="h-10 text-sm flex-1"
-            />
-            <Button size="sm" onClick={addFolder} disabled={saving || !newFolderName.trim()}>Add</Button>
-            <button onClick={() => { setAddingFolder(false); setNewFolderName(""); }} className="text-xs text-gray-400 px-1">
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setAddingFolder(true)}
-            className="w-full flex items-center gap-2 py-3 px-3 text-sm text-brand-600 font-semibold rounded-2xl border border-dashed border-brand-200 hover:bg-blue-50 transition-colors"
-          >
-            <Plus size={16} /> Add folder
-          </button>
-        )}
       </div>
     </div>
   );

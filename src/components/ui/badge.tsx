@@ -16,6 +16,7 @@ const badgeVariants = cva(
         residential: "bg-blue-50 text-brand-600",
         commercial: "bg-purple-50 text-purple-700",
         hospitality: "bg-orange-50 text-orange-700",
+        industrial: "bg-gray-200/70 text-gray-700",
         other: "bg-gray-50 text-gray-600",
       },
     },

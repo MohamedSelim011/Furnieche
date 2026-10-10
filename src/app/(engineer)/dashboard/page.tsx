@@ -61,6 +61,7 @@ async function getProjects(userId: string): Promise<ProjectCardData[]> {
     clientName: p.clientName,
     status: p.status,
     category: p.category,
+    categoryOther: p.categoryOther,
     updatedAt: p.updatedAt,
     coverUrl: p.coverUrl
       ? imgUrl("cover", p.id, 320, p.coverUrl)

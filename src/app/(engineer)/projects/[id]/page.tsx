@@ -13,6 +13,7 @@ import { syncUser } from "@/lib/sync-user";
 import { formatDate, formatRelativeTime } from "@/lib/utils";
 import { getProjectAccess, canEdit } from "@/lib/authz";
 import { DeleteProjectButton } from "./delete-project-button";
+import { categoryLabel } from "@/lib/constants";
 import { ShareSection } from "./share-section";
 import { ProjectCover } from "./project-cover";
 
@@ -121,8 +122,8 @@ export default async function ProjectDetailPage({
 
         <ProjectCover projectId={id} coverUrl={project.coverUrl} editable={editable} />
 
-        <Badge variant={project.category.toLowerCase() as "residential" | "commercial" | "hospitality" | "other"}>
-          {project.category}
+        <Badge variant={project.category.toLowerCase() as "residential" | "commercial" | "hospitality" | "industrial" | "other"}>
+          {categoryLabel(project.category, project.categoryOther)}
         </Badge>
         <h1 className="text-xl font-bold text-gray-900 mt-2">{project.name}</h1>
         <p className="text-sm text-gray-500">Client: {project.clientName}</p>

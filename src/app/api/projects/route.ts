@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { syncUser } from "@/lib/sync-user";
 import { sendClientPortalEmail } from "@/lib/email";
 import { getPlan } from "@/lib/plans";
-import { DEFAULT_FOLDERS } from "@/lib/constants";
+import { CATEGORY_OTHER_MAX, DEFAULT_FOLDERS, PROJECT_CATEGORIES, type ProjectCategoryValue } from "@/lib/constants";
 import { isStorageUrl } from "@/lib/storage";
 
 export async function GET() {
@@ -57,16 +57,26 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, category, clientName, clientEmail, location, startDate, estimatedEndDate, budget, coverUrl } = body;
+  const { name, category, categoryOther, clientName, clientEmail, location, startDate, estimatedEndDate, budget, coverUrl } = body;
 
   if (!name || !clientName || !clientEmail) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  const projectCategory: ProjectCategoryValue = category ?? "RESIDENTIAL";
+  if (!PROJECT_CATEGORIES.some((c) => c.value === projectCategory)) {
+    return NextResponse.json({ error: "Invalid category" }, { status: 400 });
+  }
+  const otherText = typeof categoryOther === "string" ? categoryOther.trim().slice(0, CATEGORY_OTHER_MAX) : "";
+  if (projectCategory === "OTHER" && !otherText) {
+    return NextResponse.json({ error: "Please specify the project category" }, { status: 400 });
+  }
+
   const project = await prisma.project.create({
     data: {
       name,
-      category: category ?? "RESIDENTIAL",
+      category: projectCategory,
+      categoryOther: projectCategory === "OTHER" ? otherText : null,
       clientName,
       clientEmail,
       location: location || null,

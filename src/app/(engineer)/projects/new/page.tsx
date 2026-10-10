@@ -6,7 +6,7 @@ import { X, MapPin, ShieldCheck, ChevronRight, User, Mail, Calendar, Tag, Dollar
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PROJECT_CATEGORIES } from "@/lib/constants";
+import { CATEGORY_OTHER_MAX, PROJECT_CATEGORIES } from "@/lib/constants";
 import { CoverPhotoPicker } from "@/components/cover-photo-picker";
 import { toast } from "sonner";
 
@@ -14,6 +14,7 @@ type Step1Data = {
   name: string;
   location: string;
   category: string;
+  categoryOther: string;
   startDate: string;
   estimatedEndDate: string;
 };
@@ -32,6 +33,7 @@ export default function NewProjectPage() {
     name: "",
     location: "",
     category: "RESIDENTIAL",
+    categoryOther: "",
     startDate: "",
     estimatedEndDate: "",
   });
@@ -56,12 +58,15 @@ export default function NewProjectPage() {
           budget: step2.budget ? parseFloat(step2.budget) : null,
         }),
       });
-      if (!res.ok) throw new Error("Failed to create project");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Failed to create project");
+      }
       const { id } = await res.json();
       toast.success("Project created successfully!");
       router.push(`/projects/${id}`);
-    } catch {
-      toast.error("Failed to create project. Please try again.");
+    } catch (err) {
+      toast.error(err instanceof Error && err.message !== "Failed to create project" ? err.message : "Failed to create project. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -136,6 +141,20 @@ export default function NewProjectPage() {
                     <option key={c.value} value={c.value}>{c.label}</option>
                   ))}
                 </select>
+                {step1.category === "OTHER" && (
+                  <div className="mt-2">
+                    <Input
+                      id="categoryOther"
+                      placeholder="Specify category, e.g. Medical clinic"
+                      autoComplete="off"
+                      maxLength={CATEGORY_OTHER_MAX}
+                      value={step1.categoryOther}
+                      onChange={(e) => setStep1({ ...step1, categoryOther: e.target.value })}
+                      icon={<Tag size={15} />}
+                      autoFocus
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -196,6 +215,10 @@ export default function NewProjectPage() {
                 size="lg"
                 onClick={() => {
                   if (!step1.name) { toast.error("Project name is required"); return; }
+                  if (step1.category === "OTHER" && !step1.categoryOther.trim()) {
+                    toast.error("Please specify the project category");
+                    return;
+                  }
                   setStep(2);
                 }}
               >

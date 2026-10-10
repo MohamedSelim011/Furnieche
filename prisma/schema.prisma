@@ -37,6 +37,7 @@ enum ProjectCategory {
   RESIDENTIAL
   COMMERCIAL
   HOSPITALITY
+  INDUSTRIAL
   OTHER
 }
 
@@ -121,6 +122,8 @@ model Project {
   id               String          @id @default(uuid())
   name             String
   category         ProjectCategory @default(RESIDENTIAL)
+  // Free-text category when category is OTHER (e.g. "Medical clinic")
+  categoryOther    String?
   status           ProjectStatus   @default(ACTIVE)
   clientName       String
   clientEmail      String

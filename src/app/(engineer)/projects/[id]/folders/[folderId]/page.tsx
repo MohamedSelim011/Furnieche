@@ -200,7 +200,7 @@ export default function FolderDetailPage() {
   }
 
   return (
-    <div className="min-h-screen max-w-md mx-auto pb-8">
+    <div className="min-h-screen max-w-md mx-auto pb-28">
       <div className="bg-white px-4 pt-12 pb-4 border-b border-gray-100">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => router.back()} className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center">
@@ -221,6 +221,49 @@ export default function FolderDetailPage() {
           </div>
           <Progress value={progress} />
         </div>
+      </div>
+
+      {/* Actions stay pinned at the top, however long the file list gets */}
+      <div className="sticky top-0 z-20 px-4 py-3 bg-[#f8f5f0]/90 backdrop-blur border-b border-gray-100">
+        <div className="flex gap-2">
+          <Button
+            className="flex-1 h-11"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+            {uploading ? "Uploading…" : "Add files"}
+          </Button>
+          <Button
+            variant="outline"
+            className="h-11 px-4"
+            onClick={() => setAddingSubfolder((v) => !v)}
+          >
+            <FolderPlus size={16} /> Subfolder
+          </Button>
+        </div>
+        {addingSubfolder && (
+          <div className="mt-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-2 flex gap-2">
+            <Input
+              placeholder="Subfolder name..."
+              value={newSubfolderName}
+              onChange={(e) => setNewSubfolderName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addSubfolder()}
+              autoFocus
+              className="h-10 text-sm flex-1"
+            />
+            <Button size="sm" className="h-10" onClick={addSubfolder} disabled={creatingSubfolder || !newSubfolderName.trim()}>
+              Add
+            </Button>
+            <button
+              onClick={() => { setAddingSubfolder(false); setNewSubfolderName(""); }}
+              className="text-xs text-gray-400 px-1"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+        <input ref={fileInputRef} type="file" multiple onChange={handleUpload} className="hidden" />
       </div>
 
       <div className="px-4 pt-4 space-y-2">
@@ -260,45 +303,11 @@ export default function FolderDetailPage() {
           </div>
         )}
 
-        {addingSubfolder ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 flex gap-2">
-            <Input
-              placeholder="Subfolder name..."
-              value={newSubfolderName}
-              onChange={(e) => setNewSubfolderName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addSubfolder()}
-              autoFocus
-              className="h-10 text-sm flex-1"
-            />
-            <Button size="sm" onClick={addSubfolder} disabled={creatingSubfolder || !newSubfolderName.trim()}>Add</Button>
-            <button onClick={() => { setAddingSubfolder(false); setNewSubfolderName(""); }} className="text-xs text-gray-400 px-1">
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setAddingSubfolder(true)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 text-sm text-brand-600 font-semibold rounded-2xl border border-dashed border-brand-200 hover:bg-blue-50 transition-colors"
-          >
-            <FolderPlus size={15} /> Add subfolder
-          </button>
-        )}
-
         {files.length === 0 && subfolders.length === 0 && (
-          <p className="text-center text-sm text-gray-400 py-6">Nothing here yet</p>
+          <p className="text-center text-sm text-gray-400 py-6">Nothing here yet — use “Add files” above</p>
         )}
 
         <FileList projectId={id} folderId={folderId} files={files} setFiles={setFiles} />
-
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="w-full flex items-center justify-center gap-2 py-3 px-3 text-sm text-brand-600 font-semibold rounded-2xl border border-dashed border-brand-200 hover:bg-blue-50 transition-colors disabled:opacity-50"
-        >
-          {uploading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-          {uploading ? "Uploading..." : "Add file"}
-        </button>
-        <input ref={fileInputRef} type="file" multiple onChange={handleUpload} className="hidden" />
       </div>
     </div>
   );

@@ -22,8 +22,19 @@ export const PROJECT_CATEGORIES = [
   { value: "RESIDENTIAL", label: "Residential" },
   { value: "COMMERCIAL", label: "Commercial" },
   { value: "HOSPITALITY", label: "Hospitality" },
+  { value: "INDUSTRIAL", label: "Industrial" },
   { value: "OTHER", label: "Other" },
 ] as const;
+
+export type ProjectCategoryValue = (typeof PROJECT_CATEGORIES)[number]["value"];
+
+export const CATEGORY_OTHER_MAX = 60;
+
+/** What to show for a project's category — the engineer's own words when "Other". */
+export function categoryLabel(category: string, categoryOther?: string | null): string {
+  if (category === "OTHER" && categoryOther?.trim()) return categoryOther.trim();
+  return PROJECT_CATEGORIES.find((c) => c.value === category)?.label ?? category;
+}
 
 export const UPDATE_CATEGORIES = [
   "Furniture Assembly",
